@@ -1,0 +1,79 @@
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f1419;
+  color: #e6e1d7;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+}
+
+header { text-align: center; padding: 1.5rem 0; }
+h1 { font-size: 1.3rem; font-weight: 500; color: #9aa5b1; }
+h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; color: #c8a96a; }
+
+.next { font-size: 2rem; font-weight: 600; margin-top: .5rem; }
+.countdown { font-size: 1.1rem; color: #9aa5b1; font-variant-numeric: tabular-nums; }
+.playing { margin-top: .75rem; padding: .5rem 1rem; background: #1d3324; border-radius: 8px; color: #7fd0a0; display: inline-block; }
+.hidden { display: none; }
+
+section {
+  background: #171e26;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.times-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; text-align: center; }
+.times-grid .cell { background: #0f1419; border-radius: 8px; padding: .6rem .2rem; }
+.times-grid .cell.past { opacity: .4; }
+.times-grid .cell.next-up { outline: 2px solid #c8a96a; }
+.times-grid .name { font-size: .75rem; text-transform: capitalize; color: #9aa5b1; }
+.times-grid .time { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.row { display: flex; gap: .5rem; align-items: center; margin-bottom: .6rem; flex-wrap: wrap; }
+.row label { display: flex; align-items: center; gap: .5rem; flex: 1; font-size: .85rem; }
+
+select, input[type="text"], input[type="number"], input:not([type]) {
+  background: #0f1419; color: #e6e1d7; border: 1px solid #2c3540;
+  border-radius: 8px; padding: .55rem .7rem; font-size: .9rem; flex: 1; min-width: 0; width: 100%;
+}
+input[type="range"] { flex: 1; accent-color: #c8a96a; }
+
+button {
+  background: #2c3540; color: #e6e1d7; border: none; border-radius: 8px;
+  padding: .55rem 1.1rem; font-size: .9rem; cursor: pointer;
+}
+button.primary { background: #c8a96a; color: #14100a; font-weight: 600; }
+button.danger { background: #4a2323; color: #e8a0a0; }
+button:active { transform: scale(.97); }
+
+.prayer-row {
+  display: grid; grid-template-columns: auto 1fr 1fr auto; gap: .5rem;
+  align-items: center; padding: .5rem 0; border-bottom: 1px solid #222b35;
+}
+.prayer-row:last-child { border-bottom: none; }
+.prayer-row .pname { text-transform: capitalize; font-weight: 600; width: 4.5rem; }
+.prayer-row input[type="checkbox"] { width: 1.2rem; height: 1.2rem; accent-color: #c8a96a; }
+
+.hook-card {
+  background: #0f1419; border-radius: 8px; padding: .7rem; margin-bottom: .5rem;
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+}
+.hook-card .meta { font-size: .8rem; color: #9aa5b1; }
+.checkgroup { gap: .3rem; }
+.checkgroup label {
+  flex: initial; background: #0f1419; border: 1px solid #2c3540; border-radius: 999px;
+  padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
+}
+.checkgroup label:has(input:checked) { background: #c8a96a; color: #14100a; border-color: #c8a96a; }
+.checkgroup input { display: none; }
+
+details summary { cursor: pointer; color: #9aa5b1; font-size: .9rem; margin: .5rem 0; }
+form input { margin-bottom: .6rem; }
+
+#events { list-style: none; font-size: .8rem; color: #9aa5b1; }
+#events li { padding: .35rem 0; border-bottom: 1px solid #222b35; }
+#events li .ts { color: #5a6672; margin-right: .5rem; font-variant-numeric: tabular-nums; }
+#events li.type-error { color: #e8a0a0; }

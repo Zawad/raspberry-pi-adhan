@@ -5,3 +5,10 @@ adhan.log
 .settings
 before-hooks.d/*.sh
 after-hooks.d/*.sh
+
+# Python virtualenv
+.venv/
+__pycache__/
+
+# adhand
+adhand.db*

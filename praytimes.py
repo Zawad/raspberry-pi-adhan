@@ -111,13 +111,13 @@ class PrayTimes():
 
 	#---------------------- Default Settings --------------------
 
-	calcMethod = 'MWL'
+	calcMethod = 'ISNA'
 
 	# do not change anything here; use adjust method instead
 	settings = {
 		"imsak"    : '10 min',
 		"dhuhr"    : '0 min',
-		"asr"      : 'Standard',
+		"asr"      : 'Hanafi',
 		"highLats" : 'NightMiddle'
 	}
 
@@ -131,7 +131,7 @@ class PrayTimes():
 
 	#---------------------- Initialization -----------------------
 
-	def __init__(self, method = "MWL") :
+	def __init__(self, method = "ISNA") :
 
 		# set methods defaults
 		for method, config in self.methods.items():
@@ -140,7 +140,7 @@ class PrayTimes():
 					config['params'][name] = value
 
 		# initialize settings
-		self.calcMethod = method if method in self.methods else 'MWL'
+		self.calcMethod = method if method in self.methods else 'ISNA'
 		params = self.methods[self.calcMethod]['params']
 		for name, value in params.items():
 			self.settings[name] = value

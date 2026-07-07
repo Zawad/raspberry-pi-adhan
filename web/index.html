@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Adhan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Adhan clock</h1>
+    <div id="next-prayer" class="next">—</div>
+    <div id="countdown" class="countdown"></div>
+    <div id="now-playing" class="playing hidden"></div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Today's times</h2>
+      <div id="times" class="times-grid"></div>
+    </section>
+
+    <section>
+      <h2>Test adhan</h2>
+      <div class="row">
+        <select id="test-mp3"></select>
+        <select id="test-device"></select>
+      </div>
+      <div class="row">
+        <label>Volume <input type="range" id="test-volume" min="0" max="100" value="80"></label>
+        <button id="test-play" class="primary">Play</button>
+        <button id="test-stop">Stop</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Prayers</h2>
+      <div id="prayers"></div>
+    </section>
+
+    <section>
+      <h2>Hooks</h2>
+      <div id="hooks"></div>
+      <details id="hook-form-details">
+        <summary>Add a hook</summary>
+        <form id="hook-form">
+          <input id="hook-name" placeholder="Name (e.g. Pause Quran speaker)" required>
+          <div class="row">
+            <select id="hook-position">
+              <option value="before">Before adhan</option>
+              <option value="after">After adhan</option>
+            </select>
+            <select id="hook-script"></select>
+          </div>
+          <div class="row checkgroup" id="hook-prayers"></div>
+          <div class="row checkgroup" id="hook-days"></div>
+          <button type="submit" class="primary">Add hook</button>
+        </form>
+      </details>
+    </section>
+
+    <section>
+      <h2>Location & method</h2>
+      <form id="settings-form">
+        <div class="row">
+          <input id="set-lat" type="number" step="any" placeholder="Latitude" required>
+          <input id="set-lng" type="number" step="any" placeholder="Longitude" required>
+        </div>
+        <div class="row">
+          <select id="set-method"></select>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Recent activity</h2>
+      <ul id="events"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
