@@ -25,10 +25,12 @@ a LAN-only daemon + web app so family members can control it from their phones.
   - `routes.py` — REST under `/api` + WebSocket `/api/ws` broadcasting
     playing-state and event-log entries. `main.py` is the FastAPI entry point.
 - **`web/`** — static vanilla-JS single page served by FastAPI. No build step.
-- **Legacy files** (`updateAzaanTimers.py`, `playAzaan.sh`, `crontab/`, mp3s at
-  repo root) are kept until adhand is proven on the Pi;
-  `scripts/migrate_settings.py` seeds the DB from the legacy `.settings`.
-  `deploy/install.sh` removes the old `rpiAdhanClockJob` cron entries.
+- **Legacy cron stack removed** (2026-07) once adhand was proven on the Pi:
+  `updateAzaanTimers.py`, `playAzaan.sh`, and the vendored `crontab/` lib are
+  gone. `scripts/migrate_settings.py` still seeds the DB from a legacy
+  `.settings` if present; `deploy/install.sh` still removes old
+  `rpiAdhanClockJob` cron entries. `praytimes.py` is retained — scheduler.py
+  imports it.
 
 ## Running
 
