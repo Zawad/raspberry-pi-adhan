@@ -111,7 +111,7 @@ async def put_preferences(prefs: dict):
 
 class PrayerUpdate(BaseModel):
     enabled: bool | None = None
-    volume: int | None = Field(None, ge=0, le=150)
+    volume: int | None = Field(None, ge=0, le=100)
     mp3: str | None = None
     device: str | None = None
     offset_minutes: int | None = Field(None, ge=-60, le=60)
@@ -214,7 +214,7 @@ async def devices():
 
 class TestRequest(BaseModel):
     mp3: str
-    volume: int = Field(80, ge=0, le=150)
+    volume: int = Field(80, ge=0, le=100)
     device: str | None = None
     duration: int | None = Field(None, ge=1, le=60)  # preview cap in seconds
 
@@ -239,7 +239,7 @@ async def stop_play():
 
 class PlaybackRequest(BaseModel):
     action: str | None = Field(None, pattern="^(pause|resume)$")
-    volume: int | None = Field(None, ge=0, le=150)
+    volume: int | None = Field(None, ge=0, le=100)
 
 
 @router.post("/playback")
@@ -266,7 +266,7 @@ class HookIn(BaseModel):
     script: str
     enabled: bool = True
     offset_minutes: int = Field(0, ge=-120, le=120, description="0 = in-sequence with the adhan")
-    volume: int | None = Field(None, ge=0, le=150, description="passed to the script as HOOK_VOLUME")
+    volume: int | None = Field(None, ge=0, le=100, description="passed to the script as HOOK_VOLUME")
 
 
 class HookUpdate(BaseModel):
@@ -277,7 +277,7 @@ class HookUpdate(BaseModel):
     script: str | None = None
     enabled: bool | None = None
     offset_minutes: int | None = Field(None, ge=-120, le=120)
-    volume: int | None = Field(None, ge=0, le=150)
+    volume: int | None = Field(None, ge=0, le=100)
 
 
 def _validate_hook(position: str, prayers_: list[str] | None, days: list[int] | None, script: str | None):
@@ -337,7 +337,7 @@ class SimulateRequest(BaseModel):
     kind: str = Field(pattern="^(suhoor|reminder|prayer|hook)$")
     name: str | None = None   # prayer name for reminder/prayer
     id: int | None = None     # hook id for kind=hook
-    volume: int | None = Field(None, ge=0, le=150)  # override for this test only
+    volume: int | None = Field(None, ge=0, le=100)  # override for this test only
 
 
 @router.post("/simulate")

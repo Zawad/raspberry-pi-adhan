@@ -68,10 +68,6 @@ a LAN-only daemon + web app so family members can control it from their phones.
   full sequence including hooks. UI buttons: Ramadan section, prayer gear
   panels, hook cards ("Run now"). /api/status includes "scheduled" (today's
   queued jobs) for debugging.
-- **Volume scale is 0-150**: 100 = source loudness, >100 = mpv softvol boost
-  (--volume-max=150). The bcm2835 headphone jack ships at ~-20dB — install.sh
-  sets its PCM mixer to 0dB and persists via alsactl store; without that fix
-  everything sounds faint regardless of app volume.
 - **Playback controls**: mpv is now the preferred player (JSON IPC socket at
   /tmp/adhand-mpv.sock → live volume + pause); cvlc/afplay fall back to
   SIGSTOP/SIGCONT pause, live volume returns 400. POST /api/playback
