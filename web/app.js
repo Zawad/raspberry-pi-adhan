@@ -133,13 +133,18 @@ const localIso = (d) =>
 
 function fillSelect(sel, options, selected) {
   sel.innerHTML = "";
-  for (const opt of options) {
+  const labels = options.map((opt) => (typeof opt === "string" ? prettyName(opt) : opt.label));
+  options.forEach((opt, i) => {
     const o = document.createElement("option");
-    if (typeof opt === "string") { o.value = opt; o.textContent = prettyName(opt); }
-    else { o.value = opt.id ?? ""; o.textContent = opt.label; }
+    if (typeof opt === "string") {
+      o.value = opt;
+      // same recording in two formats: show the extension so they're tellable apart
+      const dup = labels.filter((l) => l === labels[i]).length > 1;
+      o.textContent = dup ? `${labels[i]} (${opt.split(".").pop()})` : labels[i];
+    } else { o.value = opt.id ?? ""; o.textContent = opt.label; }
     if (o.value === (selected ?? "")) o.selected = true;
     sel.appendChild(o);
-  }
+  });
 }
 
 $("#test-play").onclick = async () => {
