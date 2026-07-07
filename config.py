@@ -23,6 +23,12 @@ MAX_UPLOAD_MB = 25
 ASR_METHODS = ["Standard", "Hanafi"]
 HIGH_LAT_RULES = ["NightMiddle", "AngleBased", "OneSeventh", "None"]
 
+# Defaults reflect the ICNA convention used in North America:
+# ISNA angles (15/15) with the Hanafi asr school. All remain user-configurable.
+DEFAULT_METHOD = "ISNA"
+DEFAULT_ASR_METHOD = "Hanafi"
+DEFAULT_HIGH_LATS = "NightMiddle"
+
 # user-tunable preferences stored in the settings table: key -> default
 PREFERENCE_DEFAULTS = {
     "ramadan_mode": "auto",        # auto | on | off
@@ -32,6 +38,7 @@ PREFERENCE_DEFAULTS = {
     "jumuah_action": "normal",     # normal | mp3 | skip  (Friday dhuhr)
     "jumuah_mp3": None,
     "fajr_fade_seconds": 0,
+    "hijri_offset": 0,             # -2..+2 days, for local moonsighting
 }
 
 HOOK_TIMEOUT_SECONDS = 60

@@ -13,3 +13,6 @@ adhand.db*
 Dua-Replying-Muadhin.mp3
 Dua-Iftar.mp3
 .DS_Store
+
+# dev tooling
+.pytest_cache/

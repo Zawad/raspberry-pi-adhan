@@ -62,7 +62,7 @@
         <button id="test-stop">Stop</button>
       </div>
       <div class="row">
-        <label class="upload-btn">Upload mp3…<input type="file" id="upload" accept=".mp3" hidden></label>
+        <label class="upload-btn">Upload audio…<input type="file" id="upload" accept=".mp3,.m4a" hidden></label>
         <span id="upload-status" class="meta"></span>
       </div>
     </section>
@@ -84,6 +84,9 @@
         </label>
         <label class="grow">Fajr fade-in (s)
           <input type="number" id="pref-fajr_fade_seconds" min="0" max="300" step="5">
+        </label>
+        <label class="grow">Hijri adjust (days)
+          <input type="number" id="pref-hijri_offset" min="-2" max="2" step="1">
         </label>
       </div>
       <div class="row">
@@ -162,6 +165,7 @@
         </div>
         <div class="row">
           <label class="grow">High latitudes <select id="set-highlats"></select></label>
+          <button type="button" id="preset-icna" class="sm" title="ISNA angles + Hanafi asr">ICNA preset</button>
           <button type="submit" class="primary">Save</button>
         </div>
       </form>
@@ -173,6 +177,11 @@
       <div class="row">
         <button id="do-update">Update &amp; restart</button>
         <span id="update-status" class="meta"></span>
+      </div>
+      <div class="row">
+        <a id="download-backup" class="button sm" href="/api/backup" download="adhand-backup.db">Download backup</a>
+        <label class="upload-btn">Restore…<input type="file" id="restore-file" accept=".db" hidden></label>
+        <span id="restore-status" class="meta"></span>
       </div>
     </section>
 

@@ -81,13 +81,14 @@ select, input[type="text"], input[type="number"], input[type="date"], input:not(
 input[type="number"] { max-width: 5.5rem; }
 input[type="range"] { flex: 1; accent-color: var(--primary); }
 
-button {
+button, a.button {
   background: var(--secondary); color: var(--fg); border: none; border-radius: 8px;
   padding: .55rem 1.1rem; font-size: .9rem; cursor: pointer;
 }
-button.primary { background: var(--primary); color: var(--primary-fg); font-weight: 600; }
+a.button { display: inline-block; text-decoration: none; }
+button.primary, a.button.primary { background: var(--primary); color: var(--primary-fg); font-weight: 600; }
 button.danger { background: var(--danger-bg); color: var(--danger-fg); }
-button.sm { padding: .4rem .8rem; font-size: .8rem; }
+button.sm, a.button.sm { padding: .4rem .8rem; font-size: .8rem; }
 button:active { transform: scale(.97); }
 button.active { background: var(--primary); color: var(--primary-fg); }
 

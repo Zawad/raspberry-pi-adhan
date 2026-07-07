@@ -1,9 +1,15 @@
 import asyncio
+import os
 import re
+import shutil
+import sqlite3
+import tempfile
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 import audio
 import bluetooth
@@ -12,8 +18,9 @@ import hijri
 import hooks
 import scheduler
 import system
-from config import (ASR_METHODS, CALC_METHODS, HIGH_LAT_RULES, MAX_UPLOAD_MB,
-                    MEDIA_DIR, PRAYER_NAMES, PREFERENCE_DEFAULTS)
+from config import (ASR_METHODS, CALC_METHODS, DB_PATH, DEFAULT_ASR_METHOD,
+                    DEFAULT_HIGH_LATS, DEFAULT_METHOD, HIGH_LAT_RULES,
+                    MAX_UPLOAD_MB, MEDIA_DIR, PRAYER_NAMES, PREFERENCE_DEFAULTS)
 from events import emit, ws_manager
 from player import list_media, player
 
@@ -47,8 +54,8 @@ class Settings(BaseModel):
     lat: float
     lng: float
     method: str
-    asr_method: str = "Standard"
-    high_lats: str = "NightMiddle"
+    asr_method: str = DEFAULT_ASR_METHOD
+    high_lats: str = DEFAULT_HIGH_LATS
 
 
 @router.get("/settings")
@@ -56,9 +63,9 @@ async def get_settings():
     return {
         "lat": db.get_setting("lat"),
         "lng": db.get_setting("lng"),
-        "method": db.get_setting("method", "ISNA"),
-        "asr_method": db.get_setting("asr_method", "Standard"),
-        "high_lats": db.get_setting("high_lats", "NightMiddle"),
+        "method": db.get_setting("method", DEFAULT_METHOD),
+        "asr_method": db.get_setting("asr_method", DEFAULT_ASR_METHOD),
+        "high_lats": db.get_setting("high_lats", DEFAULT_HIGH_LATS),
         "methods": CALC_METHODS,
         "asr_methods": ASR_METHODS,
         "high_lat_rules": HIGH_LAT_RULES,
@@ -79,6 +86,17 @@ async def put_settings(s: Settings):
     db.set_setting("asr_method", s.asr_method)
     db.set_setting("high_lats", s.high_lats)
     await scheduler.reschedule("settings updated")
+    return await get_settings()
+
+
+@router.post("/settings/preset/icna")
+async def apply_icna_preset():
+    """One-tap ICNA convention: ISNA angles + Hanafi asr. Location and
+    high-latitude rule are left untouched."""
+    db.set_setting("method", DEFAULT_METHOD)
+    db.set_setting("asr_method", DEFAULT_ASR_METHOD)
+    await scheduler.reschedule("ICNA preset")
+    await emit("settings", "Applied ICNA convention (ISNA + Hanafi asr)")
     return await get_settings()
 
 
@@ -410,6 +428,93 @@ async def update():
     result = await system.self_update()
     await emit("system", "Update: " + (result["output"].splitlines()[-1] if result["output"] else "done"))
     return result
+
+
+# ---------- config backup & restore ----------
+
+BACKUP_TABLES = {"settings", "prayers", "hooks", "events"}
+
+
+@router.get("/backup")
+async def backup():
+    """Return a self-contained copy of the SQLite database as a download."""
+    fd, tmp_path = tempfile.mkstemp(prefix="adhand-backup-", suffix=".db")
+    os.close(fd)
+    src = db.connect()
+    try:
+        dst = sqlite3.connect(tmp_path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+    finally:
+        src.close()
+    return FileResponse(
+        tmp_path,
+        media_type="application/octet-stream",
+        filename="adhand-backup.db",
+        background=BackgroundTask(lambda: os.path.exists(tmp_path) and os.remove(tmp_path)),
+    )
+
+
+@router.post("/restore")
+async def restore(file: UploadFile):
+    """Replace the current database with an uploaded backup, after validation."""
+    limit = 10 * 1024 * 1024  # 10 MB
+    fd, tmp_path = tempfile.mkstemp(prefix="adhand-restore-", suffix=".db")
+    os.close(fd)
+    try:
+        size = 0
+        with open(tmp_path, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > limit:
+                    raise HTTPException(413, "File exceeds 10 MB limit")
+                out.write(chunk)
+        if size == 0:
+            raise HTTPException(400, "Empty file")
+
+        # Validate: must be a SQLite db with the expected adhand tables.
+        try:
+            conn = sqlite3.connect(tmp_path)
+            try:
+                rows = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            finally:
+                conn.close()
+        except sqlite3.DatabaseError:
+            raise HTTPException(400, "Not a valid adhand backup")
+        tables = {r[0] for r in rows}
+        if not BACKUP_TABLES <= tables:
+            raise HTTPException(400, "Not a valid adhand backup")
+
+        # Pause scheduled jobs so nothing opens the DB mid-swap, then swap in
+        # the validated file and clear stale WAL/SHM sidecars. (Avoids a
+        # sub-second "no such table" window from hot-swapping under live jobs.)
+        was_running = scheduler.scheduler.running
+        if was_running:
+            scheduler.scheduler.pause()
+        try:
+            shutil.move(tmp_path, DB_PATH)
+            for sidecar in (f"{DB_PATH}-wal", f"{DB_PATH}-shm"):
+                if os.path.exists(sidecar):
+                    os.remove(sidecar)
+        finally:
+            if was_running:
+                scheduler.scheduler.resume()
+    except HTTPException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+    await scheduler.reschedule("config restored")
+    await emit("system", "Configuration restored from backup")
+    return {"ok": True}
 
 
 # ---------- events & live updates ----------

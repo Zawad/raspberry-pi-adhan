@@ -84,6 +84,27 @@ a LAN-only daemon + web app so family members can control it from their phones.
   lands in the repo root next to the other mp3s (gitignored? no — untracked;
   consider a media/uploads dir if it gets messy).
 
+## Hardening pack (2026-07)
+
+- **Tests + CI**: `tests/` (pytest, 59 tests) with `requirements-dev.txt`
+  (pytest, httpx, freezegun) and `.github/workflows/ci.yml`. conftest isolates
+  the DB via a tmp_path monkeypatch of DB_PATH (in config/db/routes) + db.init().
+  Known testability debt: `scheduler.compute_times()` reads process-global
+  `time.timezone`/`tm_isdst`, so schedule tests stub compute_times; consider
+  parameterizing utc_offset/dst later.
+- **Config backup/restore**: GET /api/backup (sqlite backup API → temp file →
+  FileResponse, BackgroundTask cleanup) and POST /api/restore (validates the
+  upload has settings/prayers/hooks/events tables, 10 MB cap; pauses the
+  APScheduler around the file swap to avoid a hot-swap "no such table" race,
+  clears WAL/SHM sidecars, reschedules). UI: System section.
+- **Hijri ±day**: `hijri_offset` preference (-2..+2), applied by shifting the
+  Gregorian date into hijridate so both display and ramadan_active() follow it.
+  UI: Ramadan section "Hijri adjust".
+- **ICNA defaults**: config DEFAULT_METHOD=ISNA, DEFAULT_ASR_METHOD=Hanafi,
+  DEFAULT_HIGH_LATS=NightMiddle (= ICNA convention); routes/scheduler use these
+  constants. POST /api/settings/preset/icna one-taps ISNA+Hanafi (keeps
+  lat/lng). UI: "ICNA preset" button by Save. All values still configurable.
+
 ## Conventions / decisions
 
 - No auth yet; trust model is the home Wi-Fi. Next step if wanted: named

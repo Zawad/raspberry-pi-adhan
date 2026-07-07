@@ -1,0 +1,5 @@
+# Test-only dependencies for the adhand pytest suite.
+# The application's runtime deps live in requirements.txt.
+pytest>=8.0
+httpx>=0.27          # required by fastapi.testclient.TestClient
+freezegun>=1.4       # deterministic time for scheduler tests

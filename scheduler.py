@@ -12,7 +12,8 @@ from apscheduler.triggers.date import DateTrigger
 
 import db
 import hijri
-from config import CHIME_FILE, PRAYER_NAMES
+from config import (CHIME_FILE, DEFAULT_ASR_METHOD, DEFAULT_HIGH_LATS,
+                    DEFAULT_METHOD, PRAYER_NAMES)
 from events import emit
 from hooks import run_hooks
 from player import player
@@ -25,10 +26,10 @@ _JOB_PREFIXES = ("prayer-", "reminder-", "suhoor", "hook-")
 
 def _engine() -> PrayTimes:
     pt = PrayTimes()
-    pt.setMethod(db.get_setting("method", "ISNA"))
+    pt.setMethod(db.get_setting("method", DEFAULT_METHOD))
     pt.adjust({
-        "asr": db.get_setting("asr_method", "Standard"),
-        "highLats": db.get_setting("high_lats", "NightMiddle"),
+        "asr": db.get_setting("asr_method", DEFAULT_ASR_METHOD),
+        "highLats": db.get_setting("high_lats", DEFAULT_HIGH_LATS),
     })
     pt.tune({p["name"]: p["offset_minutes"] or 0 for p in db.get_prayers()})
     return pt

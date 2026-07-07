@@ -14,7 +14,7 @@ const api = async (path, opts = {}) => {
 const PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PREF_KEYS = ["ramadan_mode", "suhoor_enabled", "suhoor_minutes", "suhoor_mp3",
-                   "jumuah_action", "jumuah_mp3", "fajr_fade_seconds"];
+                   "jumuah_action", "jumuah_mp3", "fajr_fade_seconds", "hijri_offset"];
 
 let state = { status: null, media: [], devices: [] };
 
@@ -472,6 +472,14 @@ $("#settings-form").onsubmit = async (e) => {
   } catch (err) { alert(err.message); }
 };
 
+$("#preset-icna").onclick = async () => {
+  try {
+    await api("/settings/preset/icna", { method: "POST" });
+    await renderSettings();
+    refreshStatus();
+  } catch (err) { alert(err.message); }
+};
+
 // ---------- system health & update ----------
 
 function healthCell(label, value) {
@@ -503,6 +511,23 @@ $("#do-update").onclick = async () => {
     if (r.restarting) setTimeout(() => location.reload(), 6000);
   } catch (e) {
     $("#update-status").textContent = e.message;
+  }
+};
+
+$("#restore-file").onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  if (!confirm("Replace all current settings with this backup?")) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  $("#restore-status").textContent = "Restoring…";
+  try {
+    await api("/restore", { method: "POST", body: fd });
+    $("#restore-status").textContent = "Restored ✓ reloading…";
+    setTimeout(() => location.reload(), 1000);
+  } catch (err) {
+    $("#restore-status").textContent = err.message;
   }
 };
 
