@@ -70,7 +70,15 @@ class Player:
         await ws_manager.broadcast({"kind": "playing", "playing": self.current})
 
     async def _ipc(self, command: list) -> None:
-        reader, writer = await asyncio.open_unix_connection(str(IPC_SOCKET))
+        # mpv creates the socket shortly after spawn; retry briefly
+        for attempt in range(6):
+            try:
+                reader, writer = await asyncio.open_unix_connection(str(IPC_SOCKET))
+                break
+            except OSError:
+                if attempt == 5:
+                    raise RuntimeError("player IPC socket unavailable")
+                await asyncio.sleep(0.3)
         writer.write(json.dumps({"command": command}).encode() + b"\n")
         await writer.drain()
         writer.close()
