@@ -82,8 +82,13 @@ def make_chime(out: Path) -> None:
 
 
 if __name__ == "__main__":
-    web = ROOT / "web"
-    make_icon(192, web / "icon-192.png")
-    make_icon(512, web / "icon-512.png")
-    make_icon(180, web / "apple-touch-icon.png")
+    # The PWA icons in web/ are resized from the brand icon in the separate
+    # mobile-app repo (Workspace/adhan .../assets/images/icon.png) — do not
+    # overwrite them unless explicitly asked (--icons regenerates the old
+    # generated crescent artwork instead).
+    if "--icons" in sys.argv:
+        web = ROOT / "web"
+        make_icon(192, web / "icon-192.png")
+        make_icon(512, web / "icon-512.png")
+        make_icon(180, web / "apple-touch-icon.png")
     make_chime(ROOT / "chime.wav")
