@@ -20,7 +20,7 @@ from praytimes import PrayTimes
 
 scheduler = AsyncIOScheduler()
 
-_JOB_PREFIXES = ("prayer-", "reminder-", "suhoor")
+_JOB_PREFIXES = ("prayer-", "reminder-", "suhoor", "hook-")
 
 
 def _engine() -> PrayTimes:
@@ -115,8 +115,8 @@ async def play_reminder(name: str) -> None:
         await emit("error", f"{name} reminder failed: {exc}")
 
 
-async def play_suhoor() -> None:
-    if not hijri.ramadan_active() or is_muted():
+async def play_suhoor(force: bool = False) -> None:
+    if not force and (not hijri.ramadan_active() or is_muted()):
         return
     fajr = db.get_prayer("fajr")
     mp3 = db.get_setting("suhoor_mp3") or CHIME_FILE
@@ -164,6 +164,20 @@ def schedule_today() -> dict | None:
         if suhoor_at > now:
             scheduler.add_job(play_suhoor, DateTrigger(run_date=suhoor_at),
                               id="suhoor", replace_existing=True)
+
+    # offset hooks: independently scheduled at prayer time +/- offset
+    from hooks import run_scheduled_hook  # late import to avoid a cycle
+    weekday = now.weekday()
+    for hook in db.get_hooks():
+        offset = hook.get("offset_minutes") or 0
+        if not hook["enabled"] or offset == 0 or weekday not in hook["days"]:
+            continue
+        for prayer in hook["prayers"]:
+            run_at = today_at(data["times"][prayer]) + timedelta(minutes=offset)
+            if run_at > now:
+                scheduler.add_job(run_scheduled_hook, DateTrigger(run_date=run_at),
+                                  args=[hook["id"], prayer],
+                                  id=f"hook-{hook['id']}-{prayer}", replace_existing=True)
     return data
 
 
@@ -198,3 +212,13 @@ def next_prayer() -> dict | None:
         if j.id.startswith("prayer-") and j.next_run_time
     ]
     return min(upcoming, key=lambda p: p["at"]) if upcoming else None
+
+
+def scheduled_jobs() -> list[dict]:
+    """Everything queued for today, for the status endpoint / debugging."""
+    jobs = [
+        {"id": j.id, "at": j.next_run_time.isoformat()}
+        for j in scheduler.get_jobs()
+        if j.id.startswith(_JOB_PREFIXES) and j.next_run_time
+    ]
+    return sorted(jobs, key=lambda j: j["at"])

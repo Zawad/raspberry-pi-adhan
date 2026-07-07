@@ -23,7 +23,7 @@
 API="${ADHAND_API:-http://127.0.0.1:8000/api}"
 SURAH_1="${NIGHT_SURAH_1:-Al-Mulk-Mishary-Rashid.mp3}"
 SURAH_2="${NIGHT_SURAH_2:-As-Sajdah-Mishary-Rashid.mp3}"
-VOLUME="${NIGHT_VOLUME:-50}"
+VOLUME="${HOOK_VOLUME:-${NIGHT_VOLUME:-50}}"
 
 if [ "$1" != "--detached" ]; then
     nohup "$0" --detached >/dev/null 2>&1 &

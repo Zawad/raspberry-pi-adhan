@@ -35,7 +35,13 @@ h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; color: var(--prim
 .next { font-size: 2rem; font-weight: 600; margin-top: .5rem; }
 .countdown { font-size: 1.1rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .iftar { margin-top: .5rem; font-size: 1rem; color: var(--primary); font-variant-numeric: tabular-nums; }
-.playing { margin-top: .75rem; padding: .5rem 1rem; background: #12251c; border-radius: var(--radius); color: var(--primary); display: inline-block; }
+.playing {
+  margin-top: .75rem; padding: .5rem 1rem; background: #12251c; border-radius: var(--radius);
+  color: var(--primary); display: inline-flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  justify-content: center;
+}
+.np-controls { display: inline-flex; align-items: center; gap: .4rem; }
+.np-controls input[type="range"] { width: 90px; }
 .hidden { display: none !important; }
 .center { justify-content: center; }
 .actions { margin-top: 1rem; }

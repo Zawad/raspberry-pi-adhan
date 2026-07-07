@@ -19,7 +19,7 @@
 
 API="${ADHAND_API:-http://127.0.0.1:8000/api}"
 FILE="${DUA_FILE:-Dua-After-Adhan.m4a}"
-VOLUME="${DUA_VOLUME:-70}"
+VOLUME="${HOOK_VOLUME:-${DUA_VOLUME:-70}}"
 
 if [ "$1" != "--detached" ]; then
     nohup "$0" --detached >/dev/null 2>&1 &

@@ -16,12 +16,13 @@
 # Optional environment overrides (set in the systemd unit if desired):
 #   KAHF_FILE            audio file name        (default Al-Khaf-Mishary-Rashid.mp3)
 #   KAHF_VOLUME          0-100                  (default 60)
-#   KAHF_DELAY_MINUTES   wait before starting   (default 0; e.g. 60 = later morning)
+#   KAHF_DELAY_MINUTES   wait before starting (default 0) — prefer the hook's
+#                        offset setting in the app instead
 #   ADHAND_API           daemon API base        (default http://127.0.0.1:8000/api)
 
 API="${ADHAND_API:-http://127.0.0.1:8000/api}"
 FILE="${KAHF_FILE:-Al-Khaf-Mishary-Rashid.mp3}"
-VOLUME="${KAHF_VOLUME:-60}"
+VOLUME="${HOOK_VOLUME:-${KAHF_VOLUME:-60}}"
 DELAY_MINUTES="${KAHF_DELAY_MINUTES:-0}"
 
 if [ "$1" != "--detached" ]; then

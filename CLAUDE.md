@@ -56,6 +56,22 @@ a LAN-only daemon + web app so family members can control it from their phones.
   Macs and the UI shows a hint instead.
 - **Self-update** (`system.py`): git pull --ff-only + pip install, then
   os._exit(0) — relies on systemd Restart=always. No sudo needed.
+- **Hook timing/volume** (2026-07): hooks have `offset_minutes` (-120..120;
+  0 = in-sequence with adhan playback, non-zero = own scheduled job at prayer
+  time + offset) and optional `volume`. Scripts get env: PRAYER, HOOK_NAME,
+  HOOK_VOLUME (when set), ADHAND_API (from `api_base` setting, default
+  http://127.0.0.1:8000/api — override in dev when the port differs).
+  Curated hooks live in after-hooks.d/ (Kahf, night surahs, dua); the old
+  00-example.sh files were removed.
+- **Testing/simulation**: POST /api/simulate {kind: suhoor|reminder|prayer|
+  hook, name?, id?} — suhoor is forced past the Ramadan check; prayer runs the
+  full sequence including hooks. UI buttons: Ramadan section, prayer gear
+  panels, hook cards ("Run now"). /api/status includes "scheduled" (today's
+  queued jobs) for debugging.
+- **Playback controls**: mpv is now the preferred player (JSON IPC socket at
+  /tmp/adhand-mpv.sock → live volume + pause); cvlc/afplay fall back to
+  SIGSTOP/SIGCONT pause, live volume returns 400. POST /api/playback
+  {action: pause|resume, volume}. player.current has paused + live_volume.
 - **Dua audio**: `scripts/fetch_duas.py` downloads recitations (after-adhan,
   muadhin reply, iftar) from hisnmuslim.com — the official Hisn al-Muslim site,
   free distribution but no formal license, so files are fetched at install

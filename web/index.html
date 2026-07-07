@@ -22,7 +22,14 @@
     <div id="next-prayer" class="next">—</div>
     <div id="countdown" class="countdown"></div>
     <div id="iftar" class="iftar hidden"></div>
-    <div id="now-playing" class="playing hidden"></div>
+    <div id="now-playing" class="playing hidden">
+      <span id="np-text"></span>
+      <span class="np-controls">
+        <button id="np-pause" class="sm" title="Pause / resume">⏸</button>
+        <button id="np-stop" class="sm" title="Stop">⏹</button>
+        <input type="range" id="np-volume" min="0" max="100" title="Volume">
+      </span>
+    </div>
     <div class="row center actions">
       <button id="skip-next" class="sm">Skip next</button>
       <button id="mute-today" class="sm">Mute today</button>
@@ -85,6 +92,7 @@
           <input type="number" id="pref-suhoor_minutes" min="5" max="180" step="5">
         </label>
         <select id="pref-suhoor_mp3" class="grow"></select>
+        <button type="button" id="test-suhoor" class="sm">Test</button>
       </div>
       <div class="row">
         <label class="grow">Friday dhuhr
@@ -114,6 +122,15 @@
           </div>
           <div class="row checkgroup" id="hook-prayers"></div>
           <div class="row checkgroup" id="hook-days"></div>
+          <div class="row">
+            <label class="grow">Offset (min)
+              <input type="number" id="hook-offset" min="-120" max="120" value="0">
+            </label>
+            <label class="grow">Volume
+              <input type="number" id="hook-volume" min="0" max="100" placeholder="default">
+            </label>
+          </div>
+          <div class="meta">Offset: negative runs before the adhan (e.g. −45 = 45 min early), 0 runs with it.</div>
           <button type="submit" class="primary">Add hook</button>
         </form>
       </details>

@@ -1,3 +1,4 @@
+import asyncio
 import re
 from datetime import datetime, timezone
 
@@ -36,6 +37,7 @@ async def status():
         "iftar_at": data["times"]["maghrib"] if (data and ramadan) else None,
         "mute_until": db.get_setting("mute_until") if scheduler.is_muted() else None,
         "skip_next": db.get_setting("skip_next"),
+        "scheduled": scheduler.scheduled_jobs(),
     }
 
 
@@ -235,6 +237,25 @@ async def stop_play():
     return {"playing": None}
 
 
+class PlaybackRequest(BaseModel):
+    action: str | None = Field(None, pattern="^(pause|resume)$")
+    volume: int | None = Field(None, ge=0, le=100)
+
+
+@router.post("/playback")
+async def playback_control(req: PlaybackRequest):
+    if not player.playing:
+        raise HTTPException(400, "Nothing is playing")
+    if req.action:
+        await player.set_pause(req.action == "pause")
+    if req.volume is not None:
+        try:
+            await player.set_volume(req.volume)
+        except RuntimeError as exc:
+            raise HTTPException(400, str(exc))
+    return {"playing": player.current}
+
+
 # ---------- hooks ----------
 
 class HookIn(BaseModel):
@@ -244,6 +265,8 @@ class HookIn(BaseModel):
     days: list[int] = Field(description="0=Monday .. 6=Sunday")
     script: str
     enabled: bool = True
+    offset_minutes: int = Field(0, ge=-120, le=120, description="0 = in-sequence with the adhan")
+    volume: int | None = Field(None, ge=0, le=100, description="passed to the script as HOOK_VOLUME")
 
 
 class HookUpdate(BaseModel):
@@ -253,6 +276,8 @@ class HookUpdate(BaseModel):
     days: list[int] | None = None
     script: str | None = None
     enabled: bool | None = None
+    offset_minutes: int | None = Field(None, ge=-120, le=120)
+    volume: int | None = Field(None, ge=0, le=100)
 
 
 def _validate_hook(position: str, prayers_: list[str] | None, days: list[int] | None, script: str | None):
@@ -280,26 +305,62 @@ async def hook_scripts():
 @router.post("/hooks")
 async def create_hook(h: HookIn):
     _validate_hook(h.position, h.prayers, h.days, h.script)
-    hook_id = db.add_hook(h.name, h.position, h.prayers, h.days, h.script, h.enabled)
+    hook_id = db.add_hook(h.name, h.position, h.prayers, h.days, h.script,
+                          h.enabled, h.offset_minutes, h.volume)
     await emit("hooks", f"Added {h.position}-hook '{h.name}'")
+    await scheduler.reschedule("hook added")
     return {"id": hook_id}
 
 
 @router.put("/hooks/{hook_id}")
 async def edit_hook(hook_id: int, h: HookUpdate):
-    existing = next((x for x in db.get_hooks() if x["id"] == hook_id), None)
+    existing = db.get_hook(hook_id)
     if not existing:
         raise HTTPException(404, "hook not found")
     position = h.position or existing["position"]
     _validate_hook(position, h.prayers, h.days, h.script if h.script else None)
-    db.update_hook(hook_id, h.model_dump(exclude_none=True))
-    return next(x for x in db.get_hooks() if x["id"] == hook_id)
+    db.update_hook(hook_id, h.model_dump(exclude_unset=True))
+    await scheduler.reschedule("hook updated")
+    return db.get_hook(hook_id)
 
 
 @router.delete("/hooks/{hook_id}")
 async def remove_hook(hook_id: int):
     db.delete_hook(hook_id)
+    await scheduler.reschedule("hook removed")
     return {"ok": True}
+
+
+# ---------- test / simulate ----------
+
+class SimulateRequest(BaseModel):
+    kind: str = Field(pattern="^(suhoor|reminder|prayer|hook)$")
+    name: str | None = None   # prayer name for reminder/prayer
+    id: int | None = None     # hook id for kind=hook
+
+
+@router.post("/simulate")
+async def simulate(req: SimulateRequest):
+    if req.kind in ("reminder", "prayer"):
+        if req.name not in PRAYER_NAMES:
+            raise HTTPException(400, f"name must be one of {PRAYER_NAMES}")
+    if req.kind == "suhoor":
+        await emit("test", "Simulating suhoor alarm")
+        await scheduler.play_suhoor(force=True)
+    elif req.kind == "reminder":
+        await emit("test", f"Simulating {req.name} reminder")
+        await scheduler.play_reminder(req.name)
+    elif req.kind == "prayer":
+        await emit("test", f"Simulating full {req.name} adhan sequence")
+        asyncio.get_event_loop().create_task(scheduler.play_prayer(req.name))
+    elif req.kind == "hook":
+        hook = db.get_hook(req.id or -1)
+        if not hook:
+            raise HTTPException(404, "hook not found")
+        prayer = hook["prayers"][0] if hook["prayers"] else "dhuhr"
+        await emit("test", f"Running hook '{hook['name']}' now")
+        asyncio.get_event_loop().create_task(hooks.run_scheduled_hook(hook["id"], prayer, force=True))
+    return {"ok": True, "playing": player.current}
 
 
 # ---------- Bluetooth speakers ----------

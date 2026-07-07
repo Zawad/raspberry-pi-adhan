@@ -47,6 +47,8 @@ MIGRATIONS = [
     "ALTER TABLE prayers ADD COLUMN offset_minutes INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE prayers ADD COLUMN reminder_minutes INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE prayers ADD COLUMN dua_mp3 TEXT",
+    "ALTER TABLE hooks ADD COLUMN offset_minutes INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE hooks ADD COLUMN volume INTEGER",
 ]
 
 
@@ -115,21 +117,26 @@ def get_hooks() -> list[dict]:
     return hooks
 
 
-def add_hook(name: str, position: str, prayers: list[str], days: list[int], script: str, enabled: bool = True) -> int:
+def add_hook(name: str, position: str, prayers: list[str], days: list[int], script: str,
+             enabled: bool = True, offset_minutes: int = 0, volume: int | None = None) -> int:
     with connect() as conn:
         cur = conn.execute(
-            "INSERT INTO hooks (name, position, prayers, days, script, enabled, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO hooks (name, position, prayers, days, script, enabled, offset_minutes, volume, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (name, position, json.dumps(prayers), json.dumps(days), script,
-             int(enabled), datetime.now(timezone.utc).isoformat()),
+             int(enabled), offset_minutes, volume, datetime.now(timezone.utc).isoformat()),
         )
         return cur.lastrowid
+
+
+def get_hook(hook_id: int) -> dict | None:
+    return next((h for h in get_hooks() if h["id"] == hook_id), None)
 
 
 def update_hook(hook_id: int, fields: dict) -> None:
     allowed = {}
     for k, v in fields.items():
-        if k in ("name", "position", "script"):
+        if k in ("name", "position", "script", "offset_minutes", "volume"):
             allowed[k] = v
         elif k in ("prayers", "days"):
             allowed[k] = json.dumps(v)

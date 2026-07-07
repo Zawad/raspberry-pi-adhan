@@ -18,7 +18,7 @@ const PREF_KEYS = ["ramadan_mode", "suhoor_enabled", "suhoor_minutes", "suhoor_m
 
 let state = { status: null, media: [], devices: [] };
 
-const prettyName = (f) => f.replace(/^Adhan-|\.(mp3|wav)$/g, "");
+const prettyName = (f) => f.replace(/^Adhan-|\.(mp3|m4a|wav)$/g, "");
 const todayAt = (hhmm) => {
   const [h, m] = hhmm.split(":").map(Number);
   const t = new Date(); t.setHours(h, m, 0, 0);
@@ -40,7 +40,13 @@ function renderStatus() {
   const playing = s.playing;
   const el = $("#now-playing");
   el.classList.toggle("hidden", !playing);
-  if (playing) el.textContent = `Playing ${playing.label}: ${playing.mp3}`;
+  if (playing) {
+    $("#np-text").textContent = `${playing.paused ? "Paused" : "Playing"} ${playing.label}: ${prettyName(playing.mp3)}`;
+    $("#np-pause").textContent = playing.paused ? "▶" : "⏸";
+    const vol = $("#np-volume");
+    vol.classList.toggle("hidden", !playing.live_volume);
+    if (document.activeElement !== vol) vol.value = playing.volume;
+  }
 
   // mute / skip chips
   const muted = !!s.mute_until;
@@ -149,6 +155,19 @@ $("#test-play").onclick = async () => {
   } catch (e) { alert(e.message); }
 };
 $("#test-stop").onclick = () => api("/stop", { method: "POST" });
+$("#np-stop").onclick = () => api("/stop", { method: "POST" });
+$("#np-pause").onclick = () => {
+  const paused = state.status?.playing?.paused;
+  api("/playback", { method: "POST", body: JSON.stringify({ action: paused ? "resume" : "pause" }) })
+    .catch((e) => alert(e.message));
+};
+$("#np-volume").onchange = (e) =>
+  api("/playback", { method: "POST", body: JSON.stringify({ volume: Number(e.target.value) }) })
+    .catch((err) => alert(err.message));
+
+const simulate = (body) =>
+  api("/simulate", { method: "POST", body: JSON.stringify(body) }).catch((e) => alert(e.message));
+$("#test-suhoor").onclick = () => simulate({ kind: "suhoor" });
 
 $("#upload").onchange = async (e) => {
   const file = e.target.files[0];
@@ -202,7 +221,11 @@ async function renderPrayers() {
       </div>
       <div class="row">
         <label class="grow">After adhan <select class="dua"></select></label>
+      </div>
+      <div class="row">
         <button class="sm preview">▶ Preview 10s</button>
+        <button class="sm test-reminder">Test reminder</button>
+        <button class="sm test-full">Test full sequence</button>
       </div>
     `;
     fillSelect(detail.querySelector(".dua"), ["", ...state.media], p.dua_mp3 ?? "");
@@ -215,6 +238,11 @@ async function renderPrayers() {
         method: "POST",
         body: JSON.stringify({ mp3: row.querySelector(".mp3").value, volume: 40, duration: 10 }),
       }).catch((e) => alert(e.message));
+    detail.querySelector(".test-reminder").onclick = () => simulate({ kind: "reminder", name: p.name });
+    detail.querySelector(".test-full").onclick = () => {
+      if (confirm(`Play the full ${p.name} sequence now (hooks + adhan + dua)?`))
+        simulate({ kind: "prayer", name: p.name });
+    };
     row.querySelector(".gear").onclick = () => detail.classList.toggle("hidden");
     box.appendChild(detail);
   }
@@ -273,15 +301,21 @@ async function renderHooks() {
     const card = document.createElement("div");
     card.className = "hook-card";
     const days = h.days.length === 7 ? "every day" : h.days.map((d) => DAYS[d]).join(", ");
+    const off = h.offset_minutes || 0;
+    const timing = off === 0 ? h.position
+      : `${Math.abs(off)} min ${off < 0 ? "before" : "after"}`;
+    const vol = h.volume != null ? ` · vol ${h.volume}` : "";
     card.innerHTML = `
       <div>
         <div>${h.enabled ? "" : "⏸ "}${h.name}</div>
-        <div class="meta">${h.position} · ${h.prayers.join(", ")} · ${days} · ${h.script}</div>
+        <div class="meta">${timing} · ${h.prayers.join(", ")} · ${days} · ${h.script}${vol}</div>
       </div>
       <div class="row" style="margin:0">
+        <button class="sm run">Run now</button>
         <button class="sm toggle">${h.enabled ? "Disable" : "Enable"}</button>
         <button class="sm danger del">Delete</button>
       </div>`;
+    card.querySelector(".run").onclick = () => simulate({ kind: "hook", id: h.id });
     card.querySelector(".toggle").onclick = () =>
       api(`/hooks/${h.id}`, { method: "PUT", body: JSON.stringify({ enabled: !h.enabled }) }).then(renderHooks);
     card.querySelector(".del").onclick = () => {
@@ -313,6 +347,8 @@ async function setupHookForm() {
           script: $("#hook-script").value,
           prayers: checked("#hook-prayers"),
           days: checked("#hook-days").map(Number),
+          offset_minutes: Number($("#hook-offset").value) || 0,
+          volume: $("#hook-volume").value === "" ? null : Number($("#hook-volume").value),
         }),
       });
       e.target.reset();
