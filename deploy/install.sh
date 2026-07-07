@@ -17,6 +17,9 @@ python3 -m venv .venv
 echo "==> Migrating legacy .settings (if present)"
 .venv/bin/python scripts/migrate_settings.py || true
 
+echo "==> Fetching dua recitations from hisnmuslim.com"
+.venv/bin/python scripts/fetch_duas.py || true
+
 echo "==> Installing systemd service"
 sed "s|/home/pi/raspberry-pi-adhan|$REPO_DIR|g; s|User=pi|User=$USER|" deploy/adhand.service | sudo tee /etc/systemd/system/adhand.service > /dev/null
 sudo systemctl daemon-reload
