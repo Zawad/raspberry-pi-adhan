@@ -13,7 +13,7 @@ PRAYER_NAMES = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 
 CALC_METHODS = ["MWL", "ISNA", "Egypt", "Makkah", "Karachi", "Tehran", "Jafari"]
 
-DEFAULT_MP3 = "Adhan-Mishary-Rashid-Al-Afasy.m4a"
+DEFAULT_MP3 = "Adhan-Mishary-Rashid-Al-Afasy.mp3"
 DEFAULT_FAJR_MP3 = "Adhan-Mishary-Rashid-Al-Afasy-Fajr.mp3"
 CHIME_FILE = "chime.wav"
 
