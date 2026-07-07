@@ -118,8 +118,8 @@ utcOffset = -(time.timezone/3600)
 isDst = time.localtime().tm_isdst
 
 now = datetime.datetime.now()
-strPlayFajrAzaanMP3Command = '{}/playAzaan.sh {}/Adhan-fajr.mp3 {}'.format(root_dir, root_dir, fajr_azaan_vol)
-strPlayAzaanMP3Command = '{}/playAzaan.sh {}/Adhan-Madinah.mp3 {}'.format(root_dir, root_dir, azaan_vol)
+strPlayFajrAzaanMP3Command = 'XDG_RUNTIME_DIR=/run/user/1000  {}/playAzaan.sh {}/Adhan-fajr.mp3 {} >> {}/adhan.log 2>&1'.format(root_dir, root_dir, fajr_azaan_vol, root_dir)
+strPlayAzaanMP3Command = 'XDG_RUNTIME_DIR=/run/user/1000  {}/playAzaan.sh {}/Adhan-Mishary-Rashid-Al-Afasy.mp3 {} >> {}/adhan.log 2>&1'.format(root_dir, root_dir, azaan_vol, root_dir)
 strUpdateCommand = '{}/updateAzaanTimers.py >> {}/adhan.log 2>&1'.format(root_dir, root_dir)
 strClearLogsCommand = 'truncate -s 0 {}/adhan.log 2>&1'.format(root_dir)
 strJobComment = 'rpiAdhanClockJob'
