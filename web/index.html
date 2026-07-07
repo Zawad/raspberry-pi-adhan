@@ -3,23 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0f0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Adhan">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
   <title>Adhan</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="error-banner" class="banner error hidden"></div>
+
   <header>
     <h1>Adhan clock</h1>
+    <div id="hijri" class="hijri"></div>
     <div id="next-prayer" class="next">—</div>
     <div id="countdown" class="countdown"></div>
+    <div id="iftar" class="iftar hidden"></div>
     <div id="now-playing" class="playing hidden"></div>
+    <div class="row center actions">
+      <button id="skip-next" class="sm">Skip next</button>
+      <button id="mute-today" class="sm">Mute today</button>
+      <button id="mute-until" class="sm">Mute until…</button>
+      <button id="unmute" class="sm primary hidden">Unmute</button>
+    </div>
+    <div class="row center hidden" id="mute-until-row">
+      <input type="date" id="mute-date">
+      <button id="mute-date-go" class="sm primary">Mute</button>
+    </div>
+    <div id="mute-banner" class="banner hidden"></div>
   </header>
 
   <main>
     <section>
       <h2>Today's times</h2>
       <div id="times" class="times-grid"></div>
+      <div id="extras" class="meta center"></div>
     </section>
 
     <section>
@@ -33,11 +54,48 @@
         <button id="test-play" class="primary">Play</button>
         <button id="test-stop">Stop</button>
       </div>
+      <div class="row">
+        <label class="upload-btn">Upload mp3…<input type="file" id="upload" accept=".mp3" hidden></label>
+        <span id="upload-status" class="meta"></span>
+      </div>
     </section>
 
     <section>
       <h2>Prayers</h2>
       <div id="prayers"></div>
+    </section>
+
+    <section>
+      <h2>Ramadan &amp; Friday</h2>
+      <div class="row">
+        <label class="grow">Ramadan mode
+          <select id="pref-ramadan_mode">
+            <option value="auto">Auto (by hijri date)</option>
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <label class="grow">Fajr fade-in (s)
+          <input type="number" id="pref-fajr_fade_seconds" min="0" max="300" step="5">
+        </label>
+      </div>
+      <div class="row">
+        <label class="chip"><input type="checkbox" id="pref-suhoor_enabled">Suhoor alarm</label>
+        <label class="grow">min before fajr
+          <input type="number" id="pref-suhoor_minutes" min="5" max="180" step="5">
+        </label>
+        <select id="pref-suhoor_mp3" class="grow"></select>
+      </div>
+      <div class="row">
+        <label class="grow">Friday dhuhr
+          <select id="pref-jumuah_action">
+            <option value="normal">Play normally</option>
+            <option value="mp3">Play a special adhan</option>
+            <option value="skip">Skip (family at masjid)</option>
+          </select>
+        </label>
+        <select id="pref-jumuah_mp3" class="grow hidden"></select>
+      </div>
     </section>
 
     <section>
@@ -62,17 +120,42 @@
     </section>
 
     <section>
-      <h2>Location & method</h2>
+      <h2>Bluetooth speakers</h2>
+      <div id="bt-unavailable" class="meta hidden">Bluetooth pairing is managed on the Pi (bluetoothctl not found here).</div>
+      <div id="bt-list"></div>
+      <div class="row">
+        <button id="bt-scan">Scan for speakers</button>
+        <span id="bt-status" class="meta"></span>
+      </div>
+      <div id="bt-found"></div>
+    </section>
+
+    <section>
+      <h2>Location &amp; method</h2>
       <form id="settings-form">
         <div class="row">
           <input id="set-lat" type="number" step="any" placeholder="Latitude" required>
           <input id="set-lng" type="number" step="any" placeholder="Longitude" required>
+          <button type="button" id="use-location" class="sm" title="Use this phone's location">📍</button>
         </div>
         <div class="row">
-          <select id="set-method"></select>
+          <label class="grow">Method <select id="set-method"></select></label>
+          <label class="grow">Asr <select id="set-asr"></select></label>
+        </div>
+        <div class="row">
+          <label class="grow">High latitudes <select id="set-highlats"></select></label>
           <button type="submit" class="primary">Save</button>
         </div>
       </form>
+    </section>
+
+    <section>
+      <h2>System</h2>
+      <div id="health" class="health-grid"></div>
+      <div class="row">
+        <button id="do-update">Update &amp; restart</button>
+        <span id="update-status" class="meta"></span>
+      </div>
     </section>
 
     <section>

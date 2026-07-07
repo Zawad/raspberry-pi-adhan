@@ -43,9 +43,21 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
+MIGRATIONS = [
+    "ALTER TABLE prayers ADD COLUMN offset_minutes INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE prayers ADD COLUMN reminder_minutes INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE prayers ADD COLUMN dua_mp3 TEXT",
+]
+
+
 def init() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        for stmt in MIGRATIONS:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError:
+                pass  # column already exists
         for name in PRAYER_NAMES:
             mp3 = DEFAULT_FAJR_MP3 if name == "fajr" else DEFAULT_MP3
             conn.execute(
@@ -82,7 +94,8 @@ def get_prayer(name: str) -> dict | None:
 
 
 def update_prayer(name: str, fields: dict) -> None:
-    allowed = {k: v for k, v in fields.items() if k in ("enabled", "volume", "mp3", "device")}
+    allowed = {k: v for k, v in fields.items()
+               if k in ("enabled", "volume", "mp3", "device", "offset_minutes", "reminder_minutes", "dua_mp3")}
     if not allowed:
         return
     sets = ", ".join(f"{k} = ?" for k in allowed)

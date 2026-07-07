@@ -1,7 +1,7 @@
 const $ = (sel) => document.querySelector(sel);
 const api = async (path, opts = {}) => {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: opts.body instanceof FormData ? {} : { "Content-Type": "application/json" },
     ...opts,
   });
   if (!res.ok) {
@@ -13,14 +13,25 @@ const api = async (path, opts = {}) => {
 
 const PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const PREF_KEYS = ["ramadan_mode", "suhoor_enabled", "suhoor_minutes", "suhoor_mp3",
+                   "jumuah_action", "jumuah_mp3", "fajr_fade_seconds"];
 
 let state = { status: null, media: [], devices: [] };
+
+const prettyName = (f) => f.replace(/^Adhan-|\.(mp3|wav)$/g, "");
+const todayAt = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  const t = new Date(); t.setHours(h, m, 0, 0);
+  return t;
+};
 
 // ---------- status header ----------
 
 function renderStatus() {
   const s = state.status;
   if (!s) return;
+  $("#hijri").textContent = s.hijri ? s.hijri.text + (s.ramadan_active ? " · Ramadan" : "") : "";
+
   const next = s.next;
   $("#next-prayer").textContent = next
     ? `${next.name} at ${new Date(next.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
@@ -31,28 +42,60 @@ function renderStatus() {
   el.classList.toggle("hidden", !playing);
   if (playing) el.textContent = `Playing ${playing.label}: ${playing.mp3}`;
 
+  // mute / skip chips
+  const muted = !!s.mute_until;
+  $("#unmute").classList.toggle("hidden", !muted);
+  $("#mute-today").classList.toggle("hidden", muted);
+  $("#mute-until").classList.toggle("hidden", muted);
+  $("#mute-banner").classList.toggle("hidden", !muted);
+  if (muted) {
+    const until = new Date(s.mute_until);
+    $("#mute-banner").textContent = `Muted until ${until.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+  }
+  $("#skip-next").textContent = s.skip_next ? `Cancel skip (${s.skip_next.name})` : "Skip next";
+  $("#skip-next").classList.toggle("active", !!s.skip_next);
+
   const grid = $("#times");
   grid.innerHTML = "";
-  if (!s.times) return;
+  if (!s.times) { $("#extras").textContent = ""; return; }
   const now = new Date();
   for (const name of PRAYERS) {
     const hhmm = s.times[name];
-    const [h, m] = hhmm.split(":").map(Number);
-    const t = new Date(); t.setHours(h, m, 0, 0);
     const cell = document.createElement("div");
-    cell.className = "cell" + (t < now ? " past" : "") + (next && next.name === name ? " next-up" : "");
+    cell.className = "cell" + (todayAt(hhmm) < now ? " past" : "")
+      + (next && next.name === name ? " next-up" : "");
     cell.innerHTML = `<div class="name">${name}</div><div class="time">${hhmm}</div>`;
     grid.appendChild(cell);
   }
+  const ex = s.extras || {};
+  $("#extras").textContent = `sunrise ${ex.sunrise ?? "–"}` +
+    (s.ramadan_active ? ` · imsak ${ex.imsak ?? "–"}` : "");
 }
 
 function tickCountdown() {
-  const next = state.status?.next;
-  if (!next) { $("#countdown").textContent = ""; return; }
-  const diff = new Date(next.at) - new Date();
-  if (diff <= 0) { refreshStatus(); return; }
-  const h = Math.floor(diff / 3.6e6), m = Math.floor(diff / 6e4) % 60, sec = Math.floor(diff / 1e3) % 60;
-  $("#countdown").textContent = `in ${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
+  const s = state.status;
+  const next = s?.next;
+  if (next) {
+    const diff = new Date(next.at) - new Date();
+    if (diff <= 0) { refreshStatus(); return; }
+    const h = Math.floor(diff / 3.6e6), m = Math.floor(diff / 6e4) % 60, sec = Math.floor(diff / 1e3) % 60;
+    $("#countdown").textContent = `in ${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
+  } else {
+    $("#countdown").textContent = "";
+  }
+  const iftar = $("#iftar");
+  if (s?.ramadan_active && s.iftar_at) {
+    const diff = todayAt(s.iftar_at) - new Date();
+    iftar.classList.remove("hidden");
+    if (diff > 0) {
+      const h = Math.floor(diff / 3.6e6), m = Math.floor(diff / 6e4) % 60;
+      iftar.textContent = `🌙 Iftar in ${h}h ${String(m).padStart(2, "0")}m`;
+    } else {
+      iftar.textContent = "🌙 It's iftar time — taqabbal Allahu";
+    }
+  } else {
+    iftar.classList.add("hidden");
+  }
 }
 setInterval(tickCountdown, 1000);
 
@@ -61,13 +104,32 @@ async function refreshStatus() {
   renderStatus();
 }
 
-// ---------- test panel ----------
+// ---------- mute / skip ----------
+
+$("#skip-next").onclick = () => api("/skip-next", { method: "POST" }).then(refreshStatus).catch((e) => alert(e.message));
+$("#unmute").onclick = () => api("/mute", { method: "PUT", body: JSON.stringify({ until: null }) }).then(refreshStatus);
+$("#mute-today").onclick = () => {
+  const t = new Date(); t.setHours(24, 0, 0, 0); // upcoming midnight
+  api("/mute", { method: "PUT", body: JSON.stringify({ until: localIso(t) }) }).then(refreshStatus);
+};
+$("#mute-until").onclick = () => $("#mute-until-row").classList.toggle("hidden");
+$("#mute-date-go").onclick = () => {
+  const d = $("#mute-date").value;
+  if (!d) return;
+  api("/mute", { method: "PUT", body: JSON.stringify({ until: `${d}T00:00:00` }) })
+    .then(() => { $("#mute-until-row").classList.add("hidden"); refreshStatus(); });
+};
+const localIso = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` +
+  `T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
+
+// ---------- test panel & upload ----------
 
 function fillSelect(sel, options, selected) {
   sel.innerHTML = "";
   for (const opt of options) {
     const o = document.createElement("option");
-    if (typeof opt === "string") { o.value = opt; o.textContent = opt.replace(/^Adhan-|\.mp3$/g, ""); }
+    if (typeof opt === "string") { o.value = opt; o.textContent = prettyName(opt); }
     else { o.value = opt.id ?? ""; o.textContent = opt.label; }
     if (o.value === (selected ?? "")) o.selected = true;
     sel.appendChild(o);
@@ -88,6 +150,25 @@ $("#test-play").onclick = async () => {
 };
 $("#test-stop").onclick = () => api("/stop", { method: "POST" });
 
+$("#upload").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  $("#upload-status").textContent = "Uploading…";
+  try {
+    const res = await api("/media", { method: "POST", body: fd });
+    state.media = res.media;
+    $("#upload-status").textContent = `Added ${prettyName(res.name)} ✓`;
+    fillSelect($("#test-mp3"), state.media, res.name);
+    renderPrayers();
+    renderPrefSelects();
+  } catch (err) {
+    $("#upload-status").textContent = err.message;
+  }
+  e.target.value = "";
+};
+
 // ---------- prayers ----------
 
 async function renderPrayers() {
@@ -102,6 +183,7 @@ async function renderPrayers() {
       <span class="pname">${p.name}</span>
       <select class="mp3"></select>
       <input type="range" min="0" max="100" value="${p.volume}" title="Volume">
+      <button class="sm gear" title="More options">⚙</button>
     `;
     fillSelect(row.querySelector(".mp3"), state.media, p.mp3);
     const save = (fields) =>
@@ -110,6 +192,65 @@ async function renderPrayers() {
     row.querySelector(".mp3").onchange = (e) => save({ mp3: e.target.value });
     row.querySelector("input[type=range]").onchange = (e) => save({ volume: Number(e.target.value) });
     box.appendChild(row);
+
+    const detail = document.createElement("div");
+    detail.className = "prayer-detail hidden";
+    detail.innerHTML = `
+      <div class="row">
+        <label class="grow">Adjust <input type="number" class="offset" min="-60" max="60" value="${p.offset_minutes ?? 0}"> min</label>
+        <label class="grow">Remind <input type="number" class="reminder" min="0" max="120" value="${p.reminder_minutes ?? 0}"> min before</label>
+      </div>
+      <div class="row">
+        <label class="grow">After adhan <select class="dua"></select></label>
+        <button class="sm preview">▶ Preview 10s</button>
+      </div>
+    `;
+    fillSelect(detail.querySelector(".dua"), ["", ...state.media], p.dua_mp3 ?? "");
+    detail.querySelector(".dua").options[0].textContent = "Nothing";
+    detail.querySelector(".offset").onchange = (e) => save({ offset_minutes: Number(e.target.value) });
+    detail.querySelector(".reminder").onchange = (e) => save({ reminder_minutes: Number(e.target.value) });
+    detail.querySelector(".dua").onchange = (e) => save({ dua_mp3: e.target.value });
+    detail.querySelector(".preview").onclick = () =>
+      api("/test", {
+        method: "POST",
+        body: JSON.stringify({ mp3: row.querySelector(".mp3").value, volume: 40, duration: 10 }),
+      }).catch((e) => alert(e.message));
+    row.querySelector(".gear").onclick = () => detail.classList.toggle("hidden");
+    box.appendChild(detail);
+  }
+}
+
+// ---------- preferences (Ramadan & Friday) ----------
+
+function renderPrefSelects() {
+  const suhoorSel = $("#pref-suhoor_mp3"), jumSel = $("#pref-jumuah_mp3");
+  const suhoorVal = suhoorSel.value, jumVal = jumSel.value;
+  fillSelect(suhoorSel, state.media, suhoorVal);
+  fillSelect(jumSel, state.media, jumVal);
+}
+
+async function renderPreferences() {
+  const prefs = await api("/preferences");
+  renderPrefSelects();
+  for (const key of PREF_KEYS) {
+    const el = $(`#pref-${key}`);
+    if (!el) continue;
+    if (el.type === "checkbox") el.checked = !!prefs[key];
+    else if (prefs[key] != null) el.value = prefs[key];
+  }
+  $("#pref-jumuah_mp3").classList.toggle("hidden", prefs.jumuah_action !== "mp3");
+  for (const key of PREF_KEYS) {
+    const el = $(`#pref-${key}`);
+    if (!el) continue;
+    el.onchange = async () => {
+      const value = el.type === "checkbox" ? el.checked
+        : el.type === "number" ? Number(el.value) : el.value;
+      try {
+        await api("/preferences", { method: "PUT", body: JSON.stringify({ [key]: value }) });
+        if (key === "jumuah_action") $("#pref-jumuah_mp3").classList.toggle("hidden", el.value !== "mp3");
+        refreshStatus();
+      } catch (e) { alert(e.message); }
+    };
   }
 }
 
@@ -138,8 +279,8 @@ async function renderHooks() {
         <div class="meta">${h.position} · ${h.prayers.join(", ")} · ${days} · ${h.script}</div>
       </div>
       <div class="row" style="margin:0">
-        <button class="toggle">${h.enabled ? "Disable" : "Enable"}</button>
-        <button class="danger del">Delete</button>
+        <button class="sm toggle">${h.enabled ? "Disable" : "Enable"}</button>
+        <button class="sm danger del">Delete</button>
       </div>`;
     card.querySelector(".toggle").onclick = () =>
       api(`/hooks/${h.id}`, { method: "PUT", body: JSON.stringify({ enabled: !h.enabled }) }).then(renderHooks);
@@ -181,6 +322,54 @@ async function setupHookForm() {
   };
 }
 
+// ---------- Bluetooth ----------
+
+async function renderBluetooth() {
+  const bt = await api("/bluetooth");
+  $("#bt-unavailable").classList.toggle("hidden", bt.available);
+  $("#bt-scan").classList.toggle("hidden", !bt.available);
+  const list = $("#bt-list");
+  list.innerHTML = "";
+  for (const d of bt.devices) {
+    const card = document.createElement("div");
+    card.className = "device-card";
+    card.innerHTML = `
+      <span><span class="dot ${d.connected ? "on" : ""}"></span>${d.name}</span>
+      <span class="row" style="margin:0">
+        <button class="sm conn">${d.connected ? "Disconnect" : "Connect"}</button>
+        <button class="sm danger forget">Forget</button>
+      </span>`;
+    const act = (action) =>
+      api(`/bluetooth/${action}`, { method: "POST", body: JSON.stringify({ mac: d.mac }) })
+        .then(renderBluetooth).catch((e) => alert(e.message));
+    card.querySelector(".conn").onclick = () => act(d.connected ? "disconnect" : "connect");
+    card.querySelector(".forget").onclick = () => { if (confirm(`Forget ${d.name}?`)) act("forget"); };
+    list.appendChild(card);
+  }
+}
+
+$("#bt-scan").onclick = async () => {
+  $("#bt-status").textContent = "Scanning ~8s…";
+  try {
+    const found = await api("/bluetooth/scan", { method: "POST" });
+    $("#bt-status").textContent = found.length ? "" : "Nothing new found";
+    const box = $("#bt-found");
+    box.innerHTML = "";
+    for (const d of found) {
+      const card = document.createElement("div");
+      card.className = "device-card";
+      card.innerHTML = `<span>${d.name}</span><button class="sm primary">Pair</button>`;
+      card.querySelector("button").onclick = () =>
+        api("/bluetooth/pair", { method: "POST", body: JSON.stringify({ mac: d.mac }) })
+          .then(() => { card.remove(); renderBluetooth(); })
+          .catch((e) => alert(e.message));
+      box.appendChild(card);
+    }
+  } catch (e) {
+    $("#bt-status").textContent = e.message;
+  }
+};
+
 // ---------- settings ----------
 
 async function renderSettings() {
@@ -188,7 +377,20 @@ async function renderSettings() {
   $("#set-lat").value = s.lat ?? "";
   $("#set-lng").value = s.lng ?? "";
   fillSelect($("#set-method"), s.methods.map((m) => ({ id: m, label: m })), s.method);
+  fillSelect($("#set-asr"), s.asr_methods.map((m) => ({ id: m, label: m })), s.asr_method);
+  fillSelect($("#set-highlats"), s.high_lat_rules.map((m) => ({ id: m, label: m })), s.high_lats);
 }
+
+$("#use-location").onclick = () => {
+  if (!navigator.geolocation) return alert("Geolocation not available in this browser");
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      $("#set-lat").value = pos.coords.latitude.toFixed(5);
+      $("#set-lng").value = pos.coords.longitude.toFixed(5);
+    },
+    (err) => alert(err.message),
+  );
+};
 
 $("#settings-form").onsubmit = async (e) => {
   e.preventDefault();
@@ -199,13 +401,49 @@ $("#settings-form").onsubmit = async (e) => {
         lat: Number($("#set-lat").value),
         lng: Number($("#set-lng").value),
         method: $("#set-method").value,
+        asr_method: $("#set-asr").value,
+        high_lats: $("#set-highlats").value,
       }),
     });
     refreshStatus();
   } catch (err) { alert(err.message); }
 };
 
-// ---------- events ----------
+// ---------- system health & update ----------
+
+function healthCell(label, value) {
+  return `<div class="cell"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+}
+
+async function renderHealth() {
+  try {
+    const h = await api("/health");
+    const up = h.uptime_seconds ?? h.daemon_uptime_seconds;
+    const days = Math.floor(up / 86400), hrs = Math.floor(up / 3600) % 24;
+    $("#health").innerHTML =
+      healthCell("CPU temp", h.cpu_temp_c != null ? `${h.cpu_temp_c}°C` : "–") +
+      healthCell("Uptime", days ? `${days}d ${hrs}h` : `${hrs}h ${Math.floor(up / 60) % 60}m`) +
+      healthCell("Disk free", `${(h.disk_free_mb / 1024).toFixed(1)} GB`) +
+      healthCell("Time sync", h.time_synced == null ? "–" : h.time_synced ? "✓" : "✗") +
+      healthCell("Version", h.version ?? "–");
+  } catch { /* non-fatal */ }
+}
+setInterval(renderHealth, 60000);
+
+$("#do-update").onclick = async () => {
+  $("#update-status").textContent = "Checking…";
+  try {
+    const r = await api("/update", { method: "POST" });
+    $("#update-status").textContent = r.restarting
+      ? "Updated — restarting, back in a few seconds…"
+      : (r.output.split("\n").pop() || "Up to date");
+    if (r.restarting) setTimeout(() => location.reload(), 6000);
+  } catch (e) {
+    $("#update-status").textContent = e.message;
+  }
+};
+
+// ---------- events, banner, live updates ----------
 
 function eventLi(ev) {
   const li = document.createElement("li");
@@ -215,14 +453,22 @@ function eventLi(ev) {
   return li;
 }
 
+function updateErrorBanner(events) {
+  const dayAgo = Date.now() - 24 * 3.6e6;
+  const err = events.find((ev) => ev.type === "error" && new Date(ev.ts) > dayAgo);
+  const banner = $("#error-banner");
+  banner.classList.toggle("hidden", !err);
+  if (err) banner.textContent = `⚠ ${err.detail} — tap to dismiss`;
+  banner.onclick = () => banner.classList.add("hidden");
+}
+
 async function renderEvents() {
   const events = await api("/events?limit=30");
   const ul = $("#events");
   ul.innerHTML = "";
   events.forEach((ev) => ul.appendChild(eventLi(ev)));
+  updateErrorBanner(events);
 }
-
-// ---------- live updates ----------
 
 function connectWs() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -232,7 +478,8 @@ function connectWs() {
     if (data.kind === "playing") { state.status && (state.status.playing = data.playing); renderStatus(); }
     if (data.kind === "event") {
       $("#events").prepend(eventLi(data.event));
-      if (["schedule", "adhan"].includes(data.event.type)) refreshStatus();
+      if (data.event.type === "error") updateErrorBanner([data.event]);
+      if (["schedule", "adhan", "mute"].includes(data.event.type)) refreshStatus();
     }
   };
   ws.onclose = () => setTimeout(connectWs, 3000);
@@ -244,6 +491,9 @@ function connectWs() {
   [state.media, state.devices] = await Promise.all([api("/media"), api("/devices")]);
   fillSelect($("#test-mp3"), state.media);
   fillSelect($("#test-device"), state.devices);
-  await Promise.all([refreshStatus(), renderPrayers(), renderHooks(), setupHookForm(), renderSettings(), renderEvents()]);
+  await Promise.all([
+    refreshStatus(), renderPrayers(), renderPreferences(), renderHooks(),
+    setupHookForm(), renderBluetooth(), renderSettings(), renderHealth(), renderEvents(),
+  ]);
   connectWs();
 })();

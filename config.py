@@ -15,5 +15,23 @@ CALC_METHODS = ["MWL", "ISNA", "Egypt", "Makkah", "Karachi", "Tehran", "Jafari"]
 
 DEFAULT_MP3 = "Adhan-Mishary-Rashid-Al-Afasy.mp3"
 DEFAULT_FAJR_MP3 = "Adhan-fajr.mp3"
+CHIME_FILE = "chime.wav"
+
+AUDIO_EXTS = {".mp3", ".wav"}
+MAX_UPLOAD_MB = 25
+
+ASR_METHODS = ["Standard", "Hanafi"]
+HIGH_LAT_RULES = ["NightMiddle", "AngleBased", "OneSeventh", "None"]
+
+# user-tunable preferences stored in the settings table: key -> default
+PREFERENCE_DEFAULTS = {
+    "ramadan_mode": "auto",        # auto | on | off
+    "suhoor_enabled": False,
+    "suhoor_minutes": 45,          # before fajr
+    "suhoor_mp3": CHIME_FILE,
+    "jumuah_action": "normal",     # normal | mp3 | skip  (Friday dhuhr)
+    "jumuah_mp3": None,
+    "fajr_fade_seconds": 0,
+}
 
 HOOK_TIMEOUT_SECONDS = 60
