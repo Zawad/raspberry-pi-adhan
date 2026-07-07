@@ -9,3 +9,6 @@ after-hooks.d/*.sh
 # Python virtualenv
 .venv/
 __pycache__/
+
+# adhand
+adhand.db*
