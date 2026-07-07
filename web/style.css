@@ -97,6 +97,11 @@ button.active { background: var(--primary); color: var(--primary-fg); }
 }
 .prayer-row:first-child { border-top: none; }
 .prayer-row .pname { text-transform: capitalize; font-weight: 600; }
+.volwrap { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.slider-val {
+  font-size: .75rem; color: var(--muted); min-width: 2.2ch;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
 .prayer-row input[type="checkbox"] { width: 1.2rem; height: 1.2rem; accent-color: var(--primary); }
 .prayer-detail {
   background: var(--inset); border: 1px solid var(--border); border-radius: 8px;

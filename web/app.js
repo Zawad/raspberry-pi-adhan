@@ -19,6 +19,19 @@ const PREF_KEYS = ["ramadan_mode", "suhoor_enabled", "suhoor_minutes", "suhoor_m
 let state = { status: null, media: [], devices: [] };
 
 const prettyName = (f) => f.replace(/^Adhan-|\.(mp3|m4a|wav)$/g, "");
+
+// live numeric badge next to a range slider
+function showValue(range) {
+  const out = document.createElement("span");
+  out.className = "slider-val";
+  out.textContent = range.value;
+  range.after(out);
+  range.addEventListener("input", () => (out.textContent = range.value));
+}
+const syncBadge = (range) => {
+  const b = range.nextElementSibling;
+  if (b?.classList.contains("slider-val")) b.textContent = range.value;
+};
 const todayAt = (hhmm) => {
   const [h, m] = hhmm.split(":").map(Number);
   const t = new Date(); t.setHours(h, m, 0, 0);
@@ -45,7 +58,9 @@ function renderStatus() {
     $("#np-pause").textContent = playing.paused ? "▶" : "⏸";
     const vol = $("#np-volume");
     vol.classList.toggle("hidden", !playing.live_volume);
-    if (document.activeElement !== vol) vol.value = playing.volume;
+    if (vol.nextElementSibling?.classList.contains("slider-val"))
+      vol.nextElementSibling.classList.toggle("hidden", !playing.live_volume);
+    if (document.activeElement !== vol) { vol.value = playing.volume; syncBadge(vol); }
   }
 
   // mute / skip chips
@@ -209,10 +224,11 @@ async function renderPrayers() {
       <input type="checkbox" ${p.enabled ? "checked" : ""} title="Enabled">
       <span class="pname">${p.name}</span>
       <select class="mp3"></select>
-      <input type="range" min="0" max="100" value="${p.volume}" title="Volume">
+      <span class="volwrap"><input type="range" min="0" max="100" value="${p.volume}" title="Volume"></span>
       <button class="sm gear" title="More options">⚙</button>
     `;
     fillSelect(row.querySelector(".mp3"), state.media, p.mp3);
+    showValue(row.querySelector("input[type=range]"));
     const save = (fields) =>
       api(`/prayers/${p.name}`, { method: "PUT", body: JSON.stringify(fields) }).then(refreshStatus);
     row.querySelector("input[type=checkbox]").onchange = (e) => save({ enabled: e.target.checked });
@@ -535,6 +551,8 @@ function connectWs() {
 // ---------- boot ----------
 
 (async function init() {
+  showValue($("#test-volume"));
+  showValue($("#np-volume"));
   [state.media, state.devices] = await Promise.all([api("/media"), api("/devices")]);
   fillSelect($("#test-mp3"), state.media);
   fillSelect($("#test-device"), state.devices);
