@@ -5,9 +5,13 @@
 # the adhan daemon to play a recitation after the fajr adhan finishes, filling
 # the house with Quran as everyone starts the blessed day.
 #
-# To enable (in the web app): Hooks -> Add a hook
-#   position: After adhan   script: 10-friday-kahf.sh
-#   prayers:  fajr          days:   Fri
+# To enable (in the web app): Hooks -> Add a hook. Two good recipes:
+#
+#   Early morning:   position: After adhan    prayers: fajr    days: Fri
+#   Pre-Jummah:      position: Before adhan   prayers: dhuhr   days: Fri
+#                    offset: -45  (starts 45 min before the dhuhr adhan)
+#
+# (The script appears in both catalogs; before-hooks.d/ holds a symlink.)
 #
 # Playback goes through the daemon's API, so the app's chosen speaker,
 # now-playing status, and Stop button all still work. The script detaches

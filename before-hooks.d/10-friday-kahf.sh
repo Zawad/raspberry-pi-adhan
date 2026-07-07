@@ -1,0 +1,1 @@
+../after-hooks.d/10-friday-kahf.sh

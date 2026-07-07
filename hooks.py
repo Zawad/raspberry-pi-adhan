@@ -41,8 +41,12 @@ def list_scripts() -> dict[str, list[str]]:
 
 
 def resolve_script(position: str, name: str) -> Path:
-    path = (_dir_for(position) / name).resolve()
-    if path.parent != _dir_for(position).resolve() or not path.is_file():
+    # plain filenames only (no traversal); symlinks into the sibling hook dir
+    # are allowed so one script can appear in both catalogs
+    if "/" in name or name.startswith("."):
+        raise FileNotFoundError(f"Unknown {position}-hook script: {name}")
+    path = _dir_for(position) / name
+    if not path.is_file():
         raise FileNotFoundError(f"Unknown {position}-hook script: {name}")
     return path
 
