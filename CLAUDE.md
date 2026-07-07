@@ -56,6 +56,12 @@ a LAN-only daemon + web app so family members can control it from their phones.
   Macs and the UI shows a hint instead.
 - **Self-update** (`system.py`): git pull --ff-only + pip install, then
   os._exit(0) — relies on systemd Restart=always. No sudo needed.
+- **Dua audio**: `scripts/fetch_duas.py` downloads recitations (after-adhan,
+  muadhin reply, iftar) from hisnmuslim.com — the official Hisn al-Muslim site,
+  free distribution but no formal license, so files are fetched at install
+  time (install.sh runs it) and gitignored (`Dua-*.mp3`), never committed.
+  API: hisnmuslim.com/api/ar/husn_ar.json; audio /audio/ar/{id}.mp3 (needs a
+  non-Python User-Agent; default urllib UA gets 403).
 - **Uploads**: POST /api/media (multipart .mp3, 25 MB cap, filename sanitized)
   lands in the repo root next to the other mp3s (gitignored? no — untracked;
   consider a media/uploads dir if it gets messy).
