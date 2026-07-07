@@ -14,6 +14,11 @@ python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
 
+echo "==> Raising the headphone-jack mixer (Pi default is ~-20dB)"
+if amixer -c Headphones sset PCM 0dB > /dev/null 2>&1; then
+    sudo alsactl store || true
+fi
+
 echo "==> Migrating legacy .settings (if present)"
 .venv/bin/python scripts/migrate_settings.py || true
 

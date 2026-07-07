@@ -204,7 +204,7 @@ async function renderPrayers() {
       <input type="checkbox" ${p.enabled ? "checked" : ""} title="Enabled">
       <span class="pname">${p.name}</span>
       <select class="mp3"></select>
-      <input type="range" min="0" max="100" value="${p.volume}" title="Volume">
+      <input type="range" min="0" max="150" value="${p.volume}" title="Volume">
       <button class="sm gear" title="More options">⚙</button>
     `;
     fillSelect(row.querySelector(".mp3"), state.media, p.mp3);
@@ -226,7 +226,7 @@ async function renderPrayers() {
         <label class="grow">After adhan <select class="dua"></select></label>
       </div>
       <div class="row">
-        <label>Test vol <input type="number" class="testvol" min="0" max="100" value="${p.volume}"></label>
+        <label>Test vol <input type="number" class="testvol" min="0" max="150" value="${p.volume}"></label>
         <button class="sm preview">▶ Preview 10s</button>
         <button class="sm test-reminder">Test reminder</button>
         <button class="sm test-full">Test full sequence</button>

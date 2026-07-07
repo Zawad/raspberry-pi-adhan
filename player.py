@@ -33,7 +33,7 @@ def _build_cmd(path: Path, volume: int, device: str | None,
     """Returns (command, has_ipc). volume is 0-100; 50 is unity gain for vlc."""
     if shutil.which("mpv"):
         cmd = ["mpv", "--no-video", "--really-quiet", f"--volume={volume}",
-               f"--input-ipc-server={IPC_SOCKET}"]
+               "--volume-max=150", f"--input-ipc-server={IPC_SOCKET}"]
         if fade > 0:
             cmd.append(f"--af=lavfi=[afade=t=in:d={fade}]")
         if duration:

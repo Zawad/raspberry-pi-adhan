@@ -27,7 +27,7 @@
       <span class="np-controls">
         <button id="np-pause" class="sm" title="Pause / resume">⏸</button>
         <button id="np-stop" class="sm" title="Stop">⏹</button>
-        <input type="range" id="np-volume" min="0" max="100" title="Volume">
+        <input type="range" id="np-volume" min="0" max="150" title="Volume">
       </span>
     </div>
     <div class="row center actions">
@@ -57,12 +57,12 @@
         <select id="test-device"></select>
       </div>
       <div class="row">
-        <label>Volume <input type="range" id="test-volume" min="0" max="100" value="80"></label>
+        <label>Volume <input type="range" id="test-volume" min="0" max="150" value="80"></label>
         <button id="test-play" class="primary">Play</button>
         <button id="test-stop">Stop</button>
       </div>
       <div class="row">
-        <label class="upload-btn">Upload mp3…<input type="file" id="upload" accept=".mp3" hidden></label>
+        <label class="upload-btn">Upload audio…<input type="file" id="upload" accept=".mp3,.m4a" hidden></label>
         <span id="upload-status" class="meta"></span>
       </div>
     </section>
@@ -92,7 +92,7 @@
           <input type="number" id="pref-suhoor_minutes" min="5" max="180" step="5">
         </label>
         <select id="pref-suhoor_mp3" class="grow"></select>
-        <input type="number" id="test-suhoor-vol" min="0" max="100" placeholder="vol" title="Test volume">
+        <input type="number" id="test-suhoor-vol" min="0" max="150" placeholder="vol" title="Test volume">
         <button type="button" id="test-suhoor" class="sm">Test</button>
       </div>
       <div class="row">
@@ -128,7 +128,7 @@
               <input type="number" id="hook-offset" min="-120" max="120" value="0">
             </label>
             <label class="grow">Volume
-              <input type="number" id="hook-volume" min="0" max="100" placeholder="default">
+              <input type="number" id="hook-volume" min="0" max="150" placeholder="default">
             </label>
           </div>
           <div class="meta">Offset: negative runs before the adhan (e.g. −45 = 45 min early), 0 runs with it.</div>
