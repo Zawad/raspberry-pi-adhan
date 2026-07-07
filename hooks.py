@@ -50,7 +50,11 @@ async def run_hooks(position: str, prayer: str, when: datetime | None = None) ->
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            await asyncio.wait_for(proc.wait(), timeout=HOOK_TIMEOUT_SECONDS)
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=HOOK_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                proc.kill()
+                raise RuntimeError(f"timed out after {HOOK_TIMEOUT_SECONDS}s (long-running hooks should detach)")
             await emit("hook", f"Ran {position}-hook '{hook['name']}' ({hook['script']}) for {prayer}")
         except Exception as exc:
             await emit("error", f"{position}-hook '{hook['name']}' failed: {exc}")
