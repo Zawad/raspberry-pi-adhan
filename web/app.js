@@ -167,7 +167,10 @@ $("#np-volume").onchange = (e) =>
 
 const simulate = (body) =>
   api("/simulate", { method: "POST", body: JSON.stringify(body) }).catch((e) => alert(e.message));
-$("#test-suhoor").onclick = () => simulate({ kind: "suhoor" });
+$("#test-suhoor").onclick = () => {
+  const v = $("#test-suhoor-vol").value;
+  simulate({ kind: "suhoor", volume: v === "" ? null : Number(v) });
+};
 
 $("#upload").onchange = async (e) => {
   const file = e.target.files[0];
@@ -223,6 +226,7 @@ async function renderPrayers() {
         <label class="grow">After adhan <select class="dua"></select></label>
       </div>
       <div class="row">
+        <label>Test vol <input type="number" class="testvol" min="0" max="100" value="${p.volume}"></label>
         <button class="sm preview">▶ Preview 10s</button>
         <button class="sm test-reminder">Test reminder</button>
         <button class="sm test-full">Test full sequence</button>
@@ -233,15 +237,17 @@ async function renderPrayers() {
     detail.querySelector(".offset").onchange = (e) => save({ offset_minutes: Number(e.target.value) });
     detail.querySelector(".reminder").onchange = (e) => save({ reminder_minutes: Number(e.target.value) });
     detail.querySelector(".dua").onchange = (e) => save({ dua_mp3: e.target.value });
+    const testVol = () => Number(detail.querySelector(".testvol").value);
     detail.querySelector(".preview").onclick = () =>
       api("/test", {
         method: "POST",
-        body: JSON.stringify({ mp3: row.querySelector(".mp3").value, volume: 40, duration: 10 }),
+        body: JSON.stringify({ mp3: row.querySelector(".mp3").value, volume: testVol(), duration: 10 }),
       }).catch((e) => alert(e.message));
-    detail.querySelector(".test-reminder").onclick = () => simulate({ kind: "reminder", name: p.name });
+    detail.querySelector(".test-reminder").onclick = () =>
+      simulate({ kind: "reminder", name: p.name, volume: testVol() });
     detail.querySelector(".test-full").onclick = () => {
-      if (confirm(`Play the full ${p.name} sequence now (hooks + adhan + dua)?`))
-        simulate({ kind: "prayer", name: p.name });
+      if (confirm(`Play the full ${p.name} sequence now (hooks + adhan + dua) at volume ${testVol()}?`))
+        simulate({ kind: "prayer", name: p.name, volume: testVol() });
     };
     row.querySelector(".gear").onclick = () => detail.classList.toggle("hidden");
     box.appendChild(detail);

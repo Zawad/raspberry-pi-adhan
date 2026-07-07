@@ -337,6 +337,7 @@ class SimulateRequest(BaseModel):
     kind: str = Field(pattern="^(suhoor|reminder|prayer|hook)$")
     name: str | None = None   # prayer name for reminder/prayer
     id: int | None = None     # hook id for kind=hook
+    volume: int | None = Field(None, ge=0, le=100)  # override for this test only
 
 
 @router.post("/simulate")
@@ -346,13 +347,13 @@ async def simulate(req: SimulateRequest):
             raise HTTPException(400, f"name must be one of {PRAYER_NAMES}")
     if req.kind == "suhoor":
         await emit("test", "Simulating suhoor alarm")
-        await scheduler.play_suhoor(force=True)
+        await scheduler.play_suhoor(force=True, volume_override=req.volume)
     elif req.kind == "reminder":
         await emit("test", f"Simulating {req.name} reminder")
-        await scheduler.play_reminder(req.name)
+        await scheduler.play_reminder(req.name, volume_override=req.volume)
     elif req.kind == "prayer":
         await emit("test", f"Simulating full {req.name} adhan sequence")
-        asyncio.get_event_loop().create_task(scheduler.play_prayer(req.name))
+        asyncio.get_event_loop().create_task(scheduler.play_prayer(req.name, volume_override=req.volume))
     elif req.kind == "hook":
         hook = db.get_hook(req.id or -1)
         if not hook:

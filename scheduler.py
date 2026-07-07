@@ -66,10 +66,11 @@ def consume_skip(name: str) -> bool:
 
 # ---------- playback jobs ----------
 
-async def play_prayer(name: str) -> None:
+async def play_prayer(name: str, volume_override: int | None = None) -> None:
     prayer = db.get_prayer(name)
     if not prayer or not prayer["enabled"]:
         return
+    volume = prayer["volume"] if volume_override is None else volume_override
     if is_muted():
         await emit("skipped", f"{name} adhan not played (muted)")
         return
@@ -89,14 +90,14 @@ async def play_prayer(name: str) -> None:
         fade = int(db.get_setting("fajr_fade_seconds", 0) or 0)
 
     try:
-        detail = f"Playing {name} adhan ({mp3}, volume {prayer['volume']}"
+        detail = f"Playing {name} adhan ({mp3}, volume {volume}"
         detail += f", {fade}s fade-in)" if fade else ")"
         await emit("adhan", detail)
         await run_hooks("before", name)
-        await player.play(mp3, prayer["volume"], prayer["device"], label=name, fade=fade)
+        await player.play(mp3, volume, prayer["device"], label=name, fade=fade)
         await player.wait_until_done()
         if prayer.get("dua_mp3"):
-            await player.play(prayer["dua_mp3"], prayer["volume"], prayer["device"], label=f"{name} dua")
+            await player.play(prayer["dua_mp3"], volume, prayer["device"], label=f"{name} dua")
             await player.wait_until_done()
         await run_hooks("after", name)
         await emit("adhan", f"Finished {name} adhan")
@@ -104,25 +105,27 @@ async def play_prayer(name: str) -> None:
         await emit("error", f"{name} adhan failed: {exc}")
 
 
-async def play_reminder(name: str) -> None:
+async def play_reminder(name: str, volume_override: int | None = None) -> None:
     prayer = db.get_prayer(name)
-    if not prayer or not prayer["enabled"] or is_muted():
+    if not prayer or not prayer["enabled"] or (is_muted() and volume_override is None):
         return
+    volume = prayer["volume"] if volume_override is None else volume_override
     try:
-        await player.play(CHIME_FILE, prayer["volume"], prayer["device"], label=f"{name} reminder")
+        await player.play(CHIME_FILE, volume, prayer["device"], label=f"{name} reminder")
         await emit("reminder", f"{name} in {prayer['reminder_minutes']} minutes")
     except Exception as exc:
         await emit("error", f"{name} reminder failed: {exc}")
 
 
-async def play_suhoor(force: bool = False) -> None:
+async def play_suhoor(force: bool = False, volume_override: int | None = None) -> None:
     if not force and (not hijri.ramadan_active() or is_muted()):
         return
     fajr = db.get_prayer("fajr")
     mp3 = db.get_setting("suhoor_mp3") or CHIME_FILE
+    volume = fajr["volume"] if volume_override is None else volume_override
     try:
         await emit("ramadan", f"Suhoor alarm ({mp3})")
-        await player.play(mp3, fajr["volume"], fajr["device"], label="suhoor")
+        await player.play(mp3, volume, fajr["device"], label="suhoor")
     except Exception as exc:
         await emit("error", f"Suhoor alarm failed: {exc}")
 
