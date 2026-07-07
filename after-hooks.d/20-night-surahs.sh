@@ -35,15 +35,19 @@ play() {
         -d "{\"mp3\": \"$1\", \"volume\": $VOLUME}" >/dev/null
 }
 
-# poll until the player is idle (up to ~40 min, covers the longest surah)
+# poll until the player is idle; $1 = max 5s polls (480 ~= 40 min)
 wait_idle() {
-    for _ in $(seq 1 480); do
+    for _ in $(seq 1 "${1:-480}"); do
         curl -s "$API/status" | grep -q '"playing":null' && return 0
         sleep 5
     done
     return 1
 }
 
+# let a dua hook (e.g. 30-dua-after-adhan.sh) start and finish first instead
+# of cutting it off — hooks detach simultaneously, so give it a head start
+sleep 4
+wait_idle 36
 play "$SURAH_1"
 sleep 3
 wait_idle || exit 0          # something else is playing forever; bow out
