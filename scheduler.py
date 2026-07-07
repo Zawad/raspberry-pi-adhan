@@ -1,17 +1,18 @@
 """In-process prayer scheduler. Replaces the cron-rewriting approach:
-computes today's times with the vendored praytimes engine and schedules
-playback jobs directly. Recomputes just after midnight and whenever
-settings change (via reschedule()).
+computes today's times with the praytimes engine and schedules playback,
+reminder, and suhoor jobs directly. Recomputes just after midnight and
+whenever settings change (via reschedule()).
 """
 import time as time_mod
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 
 import db
-from config import PRAYER_NAMES
+import hijri
+from config import CHIME_FILE, PRAYER_NAMES
 from events import emit
 from hooks import run_hooks
 from player import player
@@ -19,61 +20,158 @@ from praytimes import PrayTimes
 
 scheduler = AsyncIOScheduler()
 
+_JOB_PREFIXES = ("prayer-", "reminder-", "suhoor")
 
-def compute_times(day: date | None = None) -> dict[str, str] | None:
-    """Prayer times as HH:MM strings for the given day, or None if location unset."""
+
+def _engine() -> PrayTimes:
+    pt = PrayTimes()
+    pt.setMethod(db.get_setting("method", "ISNA"))
+    pt.adjust({
+        "asr": db.get_setting("asr_method", "Standard"),
+        "highLats": db.get_setting("high_lats", "NightMiddle"),
+    })
+    pt.tune({p["name"]: p["offset_minutes"] or 0 for p in db.get_prayers()})
+    return pt
+
+
+def compute_times(day: date | None = None) -> dict | None:
+    """{'times': {fajr..isha: HH:MM}, 'extras': {imsak, sunrise, midnight}} or None if location unset."""
     lat, lng = db.get_setting("lat"), db.get_setting("lng")
-    method = db.get_setting("method", "ISNA")
     if lat is None or lng is None:
         return None
     day = day or date.today()
-    pt = PrayTimes()
-    pt.setMethod(method)
     utc_offset = -(time_mod.timezone / 3600)
     is_dst = time_mod.localtime().tm_isdst
-    times = pt.getTimes((day.year, day.month, day.day), (lat, lng), utc_offset, is_dst)
-    return {name: times[name] for name in PRAYER_NAMES}
+    t = _engine().getTimes((day.year, day.month, day.day), (lat, lng), utc_offset, is_dst)
+    return {
+        "times": {name: t[name] for name in PRAYER_NAMES},
+        "extras": {name: t[name] for name in ("imsak", "sunrise", "midnight")},
+    }
 
+
+# ---------- mute / skip ----------
+
+def is_muted() -> bool:
+    until = db.get_setting("mute_until")
+    return bool(until and datetime.fromisoformat(until) > datetime.now())
+
+
+def consume_skip(name: str) -> bool:
+    skip = db.get_setting("skip_next")
+    if skip and skip.get("name") == name and skip.get("date") == date.today().isoformat():
+        db.set_setting("skip_next", None)
+        return True
+    return False
+
+
+# ---------- playback jobs ----------
 
 async def play_prayer(name: str) -> None:
     prayer = db.get_prayer(name)
     if not prayer or not prayer["enabled"]:
         return
-    await emit("adhan", f"Playing {name} adhan ({prayer['mp3']}, volume {prayer['volume']})")
-    await run_hooks("before", name)
-    await player.play(prayer["mp3"], prayer["volume"], prayer["device"], label=name)
-    await player.wait_until_done()
-    await run_hooks("after", name)
-    await emit("adhan", f"Finished {name} adhan")
+    if is_muted():
+        await emit("skipped", f"{name} adhan not played (muted)")
+        return
+    if consume_skip(name):
+        await emit("skipped", f"{name} adhan skipped (one-time skip)")
+        return
+
+    mp3, fade = prayer["mp3"], 0
+    if name == "dhuhr" and datetime.now().weekday() == 4:  # Friday
+        action = db.get_setting("jumuah_action", "normal")
+        if action == "skip":
+            await emit("skipped", "dhuhr adhan skipped (jumu'ah)")
+            return
+        if action == "mp3":
+            mp3 = db.get_setting("jumuah_mp3") or mp3
+    if name == "fajr":
+        fade = int(db.get_setting("fajr_fade_seconds", 0) or 0)
+
+    try:
+        detail = f"Playing {name} adhan ({mp3}, volume {prayer['volume']}"
+        detail += f", {fade}s fade-in)" if fade else ")"
+        await emit("adhan", detail)
+        await run_hooks("before", name)
+        await player.play(mp3, prayer["volume"], prayer["device"], label=name, fade=fade)
+        await player.wait_until_done()
+        if prayer.get("dua_mp3"):
+            await player.play(prayer["dua_mp3"], prayer["volume"], prayer["device"], label=f"{name} dua")
+            await player.wait_until_done()
+        await run_hooks("after", name)
+        await emit("adhan", f"Finished {name} adhan")
+    except Exception as exc:
+        await emit("error", f"{name} adhan failed: {exc}")
 
 
-def schedule_today() -> dict[str, str] | None:
-    """(Re)create today's playback jobs for prayers still in the future."""
+async def play_reminder(name: str) -> None:
+    prayer = db.get_prayer(name)
+    if not prayer or not prayer["enabled"] or is_muted():
+        return
+    try:
+        await player.play(CHIME_FILE, prayer["volume"], prayer["device"], label=f"{name} reminder")
+        await emit("reminder", f"{name} in {prayer['reminder_minutes']} minutes")
+    except Exception as exc:
+        await emit("error", f"{name} reminder failed: {exc}")
+
+
+async def play_suhoor() -> None:
+    if not hijri.ramadan_active() or is_muted():
+        return
+    fajr = db.get_prayer("fajr")
+    mp3 = db.get_setting("suhoor_mp3") or CHIME_FILE
+    try:
+        await emit("ramadan", f"Suhoor alarm ({mp3})")
+        await player.play(mp3, fajr["volume"], fajr["device"], label="suhoor")
+    except Exception as exc:
+        await emit("error", f"Suhoor alarm failed: {exc}")
+
+
+# ---------- scheduling ----------
+
+def schedule_today() -> dict | None:
+    """(Re)create today's jobs for prayers, reminders, and suhoor still in the future."""
     for job in scheduler.get_jobs():
-        if job.id.startswith("prayer-"):
+        if job.id.startswith(_JOB_PREFIXES):
             job.remove()
-    times = compute_times()
-    if times is None:
+    data = compute_times()
+    if data is None:
         return None
     now = datetime.now()
-    for name, hhmm in times.items():
+
+    def today_at(hhmm: str) -> datetime:
+        hour, minute = map(int, hhmm.split(":"))
+        return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    for name, hhmm in data["times"].items():
         prayer = db.get_prayer(name)
         if not prayer or not prayer["enabled"]:
             continue
-        hour, minute = map(int, hhmm.split(":"))
-        run_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        run_at = today_at(hhmm)
         if run_at > now:
-            scheduler.add_job(
-                play_prayer, DateTrigger(run_date=run_at),
-                args=[name], id=f"prayer-{name}", replace_existing=True,
-            )
-    return times
+            scheduler.add_job(play_prayer, DateTrigger(run_date=run_at),
+                              args=[name], id=f"prayer-{name}", replace_existing=True)
+        reminder = prayer["reminder_minutes"] or 0
+        if reminder > 0:
+            remind_at = run_at - timedelta(minutes=reminder)
+            if remind_at > now:
+                scheduler.add_job(play_reminder, DateTrigger(run_date=remind_at),
+                                  args=[name], id=f"reminder-{name}", replace_existing=True)
+
+    if hijri.ramadan_active() and db.get_setting("suhoor_enabled"):
+        minutes = int(db.get_setting("suhoor_minutes", 45) or 45)
+        suhoor_at = today_at(data["times"]["fajr"]) - timedelta(minutes=minutes)
+        if suhoor_at > now:
+            scheduler.add_job(play_suhoor, DateTrigger(run_date=suhoor_at),
+                              id="suhoor", replace_existing=True)
+    return data
 
 
 async def reschedule(reason: str = "settings changed") -> None:
-    times = schedule_today()
-    if times:
-        await emit("schedule", f"Rescheduled ({reason}): " + ", ".join(f"{k} {v}" for k, v in times.items()))
+    data = schedule_today()
+    if data:
+        times = ", ".join(f"{k} {v}" for k, v in data["times"].items())
+        await emit("schedule", f"Rescheduled ({reason}): {times}")
     else:
         await emit("schedule", f"Location not set — nothing scheduled ({reason})")
 

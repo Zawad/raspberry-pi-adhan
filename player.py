@@ -1,31 +1,53 @@
-"""Audio playback. Prefers cvlc (as on the Pi today), falls back to mpv or afplay for dev machines."""
+"""Audio playback. Prefers cvlc (as on the Pi today), falls back to mpv or afplay for dev machines.
+
+Fade-in requires mpv (ffmpeg afade filter); with cvlc-only the fade is skipped gracefully.
+"""
 import asyncio
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import MEDIA_DIR
+from config import AUDIO_EXTS, MEDIA_DIR
 from events import emit, ws_manager
 
 
 def list_media() -> list[str]:
-    return sorted(p.name for p in MEDIA_DIR.glob("*.mp3"))
+    return sorted(p.name for p in MEDIA_DIR.iterdir()
+                  if p.is_file() and p.suffix.lower() in AUDIO_EXTS)
 
 
-def _build_cmd(path: Path, volume: int, device: str | None) -> list[str]:
+def resolve_media(name: str) -> Path:
+    path = (MEDIA_DIR / name).resolve()
+    if path.parent != MEDIA_DIR.resolve() or path.suffix.lower() not in AUDIO_EXTS or not path.is_file():
+        raise FileNotFoundError(f"Unknown audio file: {name}")
+    return path
+
+
+def _build_cmd(path: Path, volume: int, device: str | None,
+               fade: int = 0, duration: int | None = None) -> list[str]:
     """volume is 0-100; 50 is unity gain for vlc."""
+    has_mpv = shutil.which("mpv")
+    if has_mpv and (fade > 0 or not shutil.which("cvlc")):
+        cmd = ["mpv", "--no-video", "--really-quiet", f"--volume={volume}"]
+        if fade > 0:
+            cmd.append(f"--af=lavfi=[afade=t=in:d={fade}]")
+        if duration:
+            cmd.append(f"--length={duration}")
+        if device:
+            cmd.append(f"--audio-device=alsa/{device}")
+        return cmd + [str(path)]
     if shutil.which("cvlc"):
         cmd = ["cvlc", "--no-dbus", "--play-and-exit", "--gain", f"{volume / 50:.2f}"]
+        if duration:
+            cmd += ["--stop-time", str(duration)]
         if device:
             cmd += ["-A", "alsa", "--alsa-audio-device", device]
         return cmd + [str(path)]
-    if shutil.which("mpv"):
-        cmd = ["mpv", "--no-video", f"--volume={volume}"]
-        if device:
-            cmd += [f"--audio-device=alsa/{device}"]
-        return cmd + [str(path)]
     if shutil.which("afplay"):  # macOS dev fallback; no device routing
-        return ["afplay", "-v", f"{volume / 100:.2f}", str(path)]
+        cmd = ["afplay", "-v", f"{volume / 100:.2f}"]
+        if duration:
+            cmd += ["-t", str(duration)]
+        return cmd + [str(path)]
     raise RuntimeError("No supported audio player found (need cvlc, mpv, or afplay)")
 
 
@@ -38,12 +60,11 @@ class Player:
     def playing(self) -> bool:
         return self._proc is not None and self._proc.returncode is None
 
-    async def play(self, mp3: str, volume: int, device: str | None = None, label: str = "test") -> None:
-        path = (MEDIA_DIR / mp3).resolve()
-        if path.parent != MEDIA_DIR.resolve() or not path.is_file():
-            raise FileNotFoundError(f"Unknown audio file: {mp3}")
+    async def play(self, mp3: str, volume: int, device: str | None = None, label: str = "test",
+                   fade: int = 0, duration: int | None = None) -> None:
+        path = resolve_media(mp3)
         await self.stop()
-        cmd = _build_cmd(path, volume, device)
+        cmd = _build_cmd(path, volume, device, fade=fade, duration=duration)
         self._proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
         )

@@ -9,14 +9,24 @@ body {
   padding: 1rem 1rem 4rem;
 }
 
-header { text-align: center; padding: 1.5rem 0; }
+header { text-align: center; padding: 1rem 0 1.5rem; }
 h1 { font-size: 1.3rem; font-weight: 500; color: #9aa5b1; }
 h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; color: #c8a96a; }
 
+.hijri { font-size: .85rem; color: #7f8a96; margin-top: .25rem; }
 .next { font-size: 2rem; font-weight: 600; margin-top: .5rem; }
 .countdown { font-size: 1.1rem; color: #9aa5b1; font-variant-numeric: tabular-nums; }
+.iftar { margin-top: .5rem; font-size: 1rem; color: #c8a96a; font-variant-numeric: tabular-nums; }
 .playing { margin-top: .75rem; padding: .5rem 1rem; background: #1d3324; border-radius: 8px; color: #7fd0a0; display: inline-block; }
-.hidden { display: none; }
+.hidden { display: none !important; }
+.center { justify-content: center; }
+.actions { margin-top: 1rem; }
+
+.banner {
+  margin: .75rem 0; padding: .6rem 1rem; border-radius: 8px;
+  background: #33301d; color: #d8c46a; font-size: .85rem; text-align: center;
+}
+.banner.error { background: #3a1d1d; color: #e8a0a0; }
 
 section {
   background: #171e26;
@@ -31,14 +41,19 @@ section {
 .times-grid .cell.next-up { outline: 2px solid #c8a96a; }
 .times-grid .name { font-size: .75rem; text-transform: capitalize; color: #9aa5b1; }
 .times-grid .time { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.meta { font-size: .8rem; color: #7f8a96; }
+.meta.center { text-align: center; margin-top: .6rem; }
 
 .row { display: flex; gap: .5rem; align-items: center; margin-bottom: .6rem; flex-wrap: wrap; }
-.row label { display: flex; align-items: center; gap: .5rem; flex: 1; font-size: .85rem; }
+.row label { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+.row label.grow { flex: 1; }
+.grow { flex: 1; }
 
-select, input[type="text"], input[type="number"], input:not([type]) {
+select, input[type="text"], input[type="number"], input[type="date"], input:not([type]) {
   background: #0f1419; color: #e6e1d7; border: 1px solid #2c3540;
   border-radius: 8px; padding: .55rem .7rem; font-size: .9rem; flex: 1; min-width: 0; width: 100%;
 }
+input[type="number"] { max-width: 5.5rem; }
 input[type="range"] { flex: 1; accent-color: #c8a96a; }
 
 button {
@@ -47,15 +62,21 @@ button {
 }
 button.primary { background: #c8a96a; color: #14100a; font-weight: 600; }
 button.danger { background: #4a2323; color: #e8a0a0; }
+button.sm { padding: .4rem .8rem; font-size: .8rem; }
 button:active { transform: scale(.97); }
+button.active { background: #c8a96a; color: #14100a; }
 
 .prayer-row {
-  display: grid; grid-template-columns: auto 1fr 1fr auto; gap: .5rem;
-  align-items: center; padding: .5rem 0; border-bottom: 1px solid #222b35;
+  display: grid; grid-template-columns: auto 1fr 1.4fr 1.4fr auto; gap: .5rem;
+  align-items: center; padding: .5rem 0; border-top: 1px solid #222b35;
 }
-.prayer-row:last-child { border-bottom: none; }
-.prayer-row .pname { text-transform: capitalize; font-weight: 600; width: 4.5rem; }
+.prayer-row:first-child { border-top: none; }
+.prayer-row .pname { text-transform: capitalize; font-weight: 600; }
 .prayer-row input[type="checkbox"] { width: 1.2rem; height: 1.2rem; accent-color: #c8a96a; }
+.prayer-detail {
+  background: #0f1419; border-radius: 8px; padding: .7rem; margin: .2rem 0 .6rem;
+}
+.prayer-detail .row:last-child { margin-bottom: 0; }
 
 .hook-card {
   background: #0f1419; border-radius: 8px; padding: .7rem; margin-bottom: .5rem;
@@ -63,12 +84,31 @@ button:active { transform: scale(.97); }
 }
 .hook-card .meta { font-size: .8rem; color: #9aa5b1; }
 .checkgroup { gap: .3rem; }
-.checkgroup label {
+.checkgroup label, .chip {
   flex: initial; background: #0f1419; border: 1px solid #2c3540; border-radius: 999px;
   padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .4rem;
 }
-.checkgroup label:has(input:checked) { background: #c8a96a; color: #14100a; border-color: #c8a96a; }
+.checkgroup label:has(input:checked), .chip:has(input:checked) { background: #c8a96a; color: #14100a; border-color: #c8a96a; }
 .checkgroup input { display: none; }
+.chip input { width: 1rem; height: 1rem; accent-color: #14100a; }
+
+.device-card {
+  background: #0f1419; border-radius: 8px; padding: .6rem .8rem; margin-bottom: .4rem;
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: .9rem;
+}
+.device-card .meta { font-size: .75rem; }
+.dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; background: #5a6672; margin-right: .4rem; }
+.dot.on { background: #7fd0a0; }
+
+.health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .5rem; }
+.health-grid .cell { background: #0f1419; border-radius: 8px; padding: .6rem; text-align: center; }
+.health-grid .label { font-size: .7rem; color: #7f8a96; text-transform: uppercase; letter-spacing: .05em; }
+.health-grid .value { font-size: 1rem; font-weight: 600; margin-top: .2rem; }
+
+.upload-btn {
+  background: #2c3540; border-radius: 8px; padding: .5rem 1rem; font-size: .85rem; cursor: pointer;
+}
 
 details summary { cursor: pointer; color: #9aa5b1; font-size: .9rem; margin: .5rem 0; }
 form input { margin-bottom: .6rem; }

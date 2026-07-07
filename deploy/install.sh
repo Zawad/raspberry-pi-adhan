@@ -7,7 +7,7 @@ REPO_DIR="$(pwd)"
 
 echo "==> Installing system packages"
 sudo apt-get update
-sudo apt-get install -y vlc-bin vlc-plugin-base alsa-utils python3-venv
+sudo apt-get install -y vlc-bin vlc-plugin-base mpv alsa-utils bluez python3-venv
 
 echo "==> Creating virtualenv"
 python3 -m venv .venv
