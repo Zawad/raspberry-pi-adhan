@@ -25,8 +25,9 @@ def main() -> None:
     failed = 0
     for name, audio_id in DUAS.items():
         dest = ROOT / name
-        if dest.exists():
-            print(f"already have {name}")
+        # skip if any audio file with the same stem exists (e.g. a user-provided .m4a)
+        if any(ROOT.glob(dest.stem + ".*")):
+            print(f"already have {name} (or a same-named file)")
             continue
         url = URL.format(id=audio_id)
         try:

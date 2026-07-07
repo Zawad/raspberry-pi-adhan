@@ -184,8 +184,8 @@ async def media():
 @router.post("/media")
 async def upload_media(file: UploadFile):
     name = re.sub(r"[^A-Za-z0-9._-]", "_", file.filename or "")
-    if not name.lower().endswith(".mp3"):
-        raise HTTPException(400, "Only .mp3 uploads are supported")
+    if not name.lower().endswith((".mp3", ".m4a")):
+        raise HTTPException(400, "Only .mp3 and .m4a uploads are supported")
     if (MEDIA_DIR / name).exists():
         raise HTTPException(409, f"{name} already exists")
     limit = MAX_UPLOAD_MB * 1024 * 1024
