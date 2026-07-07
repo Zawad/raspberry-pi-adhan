@@ -13,12 +13,12 @@
 # hook is the one-rule-for-all-prayers alternative.
 #
 # Optional environment overrides:
-#   DUA_FILE     audio file name   (default Dua-After-Adhan.m4a)
+#   DUA_FILE     audio file name   (default Dua-After-Adhan.mp3)
 #   DUA_VOLUME   0-100             (default 70)
 #   ADHAND_API   daemon API base   (default http://127.0.0.1:8000/api)
 
 API="${ADHAND_API:-http://127.0.0.1:8000/api}"
-FILE="${DUA_FILE:-Dua-After-Adhan.m4a}"
+FILE="${DUA_FILE:-Dua-After-Adhan.mp3}"
 VOLUME="${HOOK_VOLUME:-${DUA_VOLUME:-70}}"
 
 if [ "$1" != "--detached" ]; then

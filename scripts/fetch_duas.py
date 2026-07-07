@@ -12,8 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # filename -> hisnmuslim.com audio id (see api/ar/{chapter}.json)
+# (the after-adhan dua is the family's own committed recording, not fetched)
 DUAS = {
-    "Dua-After-Adhan.mp3": 25,        # اللهم رب هذه الدعوة التامة (chapter 15)
     "Dua-Replying-Muadhin.mp3": 22,   # repeating after the muadhin (chapter 15)
     "Dua-Iftar.mp3": 176,             # ذهب الظمأ وابتلت العروق (chapter 68)
 }
